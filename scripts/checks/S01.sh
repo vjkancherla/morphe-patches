@@ -134,8 +134,16 @@ fi
 bring_to_front() {
   $ADB shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1
   $ADB shell am force-stop "$PACKAGE" >/dev/null 2>&1
-  $ADB shell am monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
-  sleep 5
+  # `monkey` intermittently left the launcher in front; start the resolved launcher
+  # activity and poll for the window instead.
+  activity="$($ADB shell cmd package resolve-activity --brief "$PACKAGE" 2>/dev/null | tail -1 | tr -d '\r')"
+  [ -n "$activity" ] || activity="$PACKAGE/launcher.default"
+  $ADB shell am start -n "$activity" >/dev/null 2>&1
+  for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    $ADB shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus=.*$PACKAGE" && break
+    sleep 1
+  done
+  sleep 2
 }
 
 ui_text() {
@@ -166,7 +174,9 @@ tap_communities_expect_search() {
   if [ -z "$coords" ]; then
     echo "expected: a bottom-bar tab labelled Communities"
     echo "found:    no Communities node in the cold-start dump"
-    echo "seen:     $(printf '%s' "$dump" | grep -o 'text=\"[^\"]\{1,30\}\"' | sort -u | head -12 | tr '\n' ' ')"
+    echo "seen:     $(printf '%s' "$dump" | grep -o 'text="[^"]\{1,30\}"' | sort -u | head -12 | tr '\n' ' ')"
+    echo "look at:  the server may have emptied the Communities slot (v1 failure mode 4);"
+    echo "look at:  with no tab there, S1's 'tap Communities' cannot run before hook 1 (S2)."
     return 1
   fi
   $ADB shell input tap $coords

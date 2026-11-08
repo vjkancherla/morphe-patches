@@ -1,6 +1,6 @@
 # S01 checkpoint run
-# started  2026-11-08T19:27:59Z
-# commit   c27fc50f5
+# started  2026-11-08T19:39:45Z
+# commit   2047f3387
 # check    95baa46c1fe44dace027593cbd1e0054bf5acee7
 # ---
 == S01  S1: no feed renders, and Communities opens search
@@ -23,14 +23,22 @@
   [2] ok    morphe-desktop patches the .apkm clean (V2, re-run)
   [3] ok    result file: success, no failed patch, hide-nav applied (all five guards matched)
   [4] ok    a phone is attached over adb (waiting for the phone if empty)
-  [5] FAIL  the phone is unlocked by the owner (adb cannot clear its lock screen)
-        ran:      phone_unlocked
+  [5] ok    the phone is unlocked by the owner (adb cannot clear its lock screen)
+  -- Installed app already carries this build - keeping its toggle state.
+  [6] FAIL  tap Communities: Reddit's search page opens as a guest, no feed visible
+        ran:      tap_communities_expect_search
         exit:     1
-        | expected: the phone unlocked, with no keyguard showing
-        | found:    the keyguard is showing (secure=true)
-        | look at:  unlock the phone yourself, keep it unlocked, then re-run scripts/checkpoint.sh 1
-        look at:  look at: the keyguard message above
-        stopping here - every later check depends on this one
+        | expected: a bottom-bar tab labelled Communities
+        | found:    no Communities node in the cold-start dump
+        | seen:     text="Aviva Digital GP" text="Citymapper" text="Delivery " text="GitHub" text="KillApps" text="Lidl Plus" text="Morphe" text="Muzio Player" text="Phone Manager" text="Reddit" text="Seal" text="Shopping" 
+        look at:  look at: uiautomator dump, the Hide feeds toggle, logcat
+  [7] FAIL  Back from search: empty Communities tab, no Discover feed, no crash
+        ran:      back_to_empty_communities_tab
+        exit:     1
+        | expected: the app still running after Back
+        | found:    the process is gone; look for a crash in logcat
+        look at:  look at: uiautomator dump and logcat
+  [8] ok    no patch failure and no crash over the whole run
 
-FAIL: S01 - 1 of 5 checks failed (stopped early)
+FAIL: S01 - 2 of 8 checks failed
 # exit     1
