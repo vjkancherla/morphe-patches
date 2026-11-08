@@ -176,11 +176,21 @@ implementer as the next session's first prompt.
 
 ## Changes
 
+- 2026-11-08 - S1's code, summary and check landed, but the device half is blocked: the
+  phone's keyguard is secure and showing, and adb cannot clear it. `scripts/checkpoint.sh 1`
+  stops at the new unlock gate after the build/patch checks pass. The todo box stays
+  unchecked; nothing after the gate is device-verified yet.
 - 2026-11-08 - Requirement change adopted from `design/hide-home-feed-v2.md`: guest mode
   only, land on Reddit's search page, never render a feed. The design pointer, coverage
   map and S1-S3 goals now follow v2. S1's drawer route is removed before device testing and
   replaced by five render-method guards plus the once-per-process search launch. v2
   replaces v1's V5, V6, V7 and V12 and adds V16 and V17; the other rows stand.
+- 2026-11-08 - Hook 4 is injected at the start of the Communities tab's attach method, not
+  after the achievements-proxy call as the v2 snippet shows. In 2026.45.0 that method
+  reuses the `View` parameter register for the proxy before the snippet's point, so passing
+  `p1` there would pass the proxy, not the view. At entry `p1` is still the attached view the
+  extension needs for a context. Verified in the shipped dex: the call is 0000 with `v1`
+  (the view) before `invoke-super`.
 - 2026-11-08 - LOOSENED: S1 no longer checks the drawer opening or the joined-subreddit
   list (v1's V5 surface half and V7). The owner has ruled out the account that list
   needed, so v2 replaces them with V5 (search landing, no feed) and V7 (Back to an empty

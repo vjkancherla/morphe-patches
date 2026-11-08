@@ -9,6 +9,7 @@ package app.morphe.patches.reddit.layout.navigation
 
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.fieldAccess
+import app.morphe.patcher.literal
 import app.morphe.patcher.methodCall
 import app.morphe.patcher.newInstance
 import com.android.tools.smali.dexlib2.AccessFlags
@@ -73,21 +74,49 @@ internal object CommunitiesTabScreenDrawerProxyFingerprint : Fingerprint(
     strings = listOf("achievementsNotificationsProxy")
 )
 
-/**
- * The lambda that wires the tab's nav-icon click (`com.reddit.communitiestab.compose.a`
- * in 2026.45.0) without its obfuscated name: among the screen's fields it reads the one
- * holding the drawer's event provider. The string only occurs inside this lambda's
- * method, and the field it null-checks is the provider; the cast to the provider's type
- * follows the `get()` call right after the field read.
- *
- * Obfuscated names are resolved from the matched instructions - never written here.
+/*
+ * The five feed screens (2026.45.0). Their class names are not obfuscated; the render
+ * method is (`V2` in this build). Each is matched structurally as the public final void
+ * method taking a Compose state and an int, and pinned by the compose key literal the v2
+ * note records. `HomePagerScreen` has four methods with that signature, so the literal is
+ * required there; every literal occurs exactly once in its class.
  */
-internal object TabScreenClickHandlerProviderFingerprint : Fingerprint(
-    strings = listOf("communityNavIconClickHandler"),
-    filters = listOf(
-        fieldAccess(
-            opcode = Opcode.IGET_OBJECT,
-            definingClass = "Lcom/reddit/communitiestab/compose/CommunitiesTabScreen;"
-        )
-    )
+internal object ExploreFeedScreenFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/communitiestab/explore/ExploreFeedScreen;",
+    returnType = "V",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    parameters = listOf("L", "I"),
+    filters = listOf(literal(888459659))
+)
+
+internal object HomePagerScreenFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/feedslegacy/switcher/impl/homepager/compose/HomePagerScreen;",
+    returnType = "V",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    parameters = listOf("L", "I"),
+    filters = listOf(literal(-1198908911))
+)
+
+internal object PopularFeedScreenFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/feeds/popular/impl/ui/PopularFeedScreen;",
+    returnType = "V",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    parameters = listOf("L", "I"),
+    filters = listOf(literal(2024162344))
+)
+
+internal object LatestFeedScreenFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/feeds/latest/impl/ui/LatestFeedScreen;",
+    returnType = "V",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    parameters = listOf("L", "I"),
+    filters = listOf(literal(-1095661192))
+)
+
+internal object NewsFeedScreenFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/feeds/news/impl/NewsFeedScreen;",
+    returnType = "V",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    parameters = listOf("L", "I"),
+    filters = listOf(literal(1045476250))
 )

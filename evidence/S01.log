@@ -1,39 +1,36 @@
 # S01 checkpoint run
-# started  2026-11-08T18:40:06Z
-# commit   8cea1dedb
-# check    f297b184938a325680c9b1b0a37d335e5e8e68ca
+# started  2026-11-08T19:27:59Z
+# commit   c27fc50f5
+# check    95baa46c1fe44dace027593cbd1e0054bf5acee7
 # ---
-== S01  S1: the drawer opens from the patched route (riskiest assumption)
-   Proves: tapping the Communities tab opens Reddit's own subreddit drawer through the
-           injected method - the route the whole design hangs on - and that a fresh,
-           un-signed-in install of the patched build boots clean with the setting off.
-   How:    rebuilds and re-patches (V2 again). On the phone: if Reddit is not already
-           patched with this build, it is reinstalled fresh (this wipes the app's data -
-           that is the accepted disposable test device). A just-fresh install cold-starts
-           and must stay alive with no crash. Then, once the owner has signed in
-           (one-time phone step) and turned Morphe -> Navigation bar -> Hide Home feed on,
-           this checkpoint taps Communities via uiautomator and asserts the drawer's
-           section headers appear on screen.
-   Needs:  ./gradlew buildAndroid producing the bundle; the 2026.45.0 .apkm; a phone
-           attached over adb; for the final check: Reddit signed in with joined
-           subreddits and the toggle on.
+== S01  S1: no feed renders, and Communities opens search
+   Proves: the five feed screens are guarded at their render method and the drawer route is
+           gone. With *Hide feeds* ON, as a guest with no account, tapping Communities opens
+           Reddit's search page; Back returns to the Communities tab with its top bar over an
+           empty page - no Discover feed - and nothing crashes.
+   How:    rebuilds and re-patches (V2 again; a fingerprint miss on a guard fails the patch, so
+           a clean result proves all five matched). On the phone: installs this build if it is
+           not already there (this wipes the app's data - the accepted disposable test device),
+           gates on the phone being unlocked (adb cannot clear a secure keyguard), cold-starts
+           the app, taps Communities via uiautomator, and asserts the search page. Then presses
+           Back and asserts the search page is gone, no feed markers are present, and the app
+           is still alive. logcat must show no patch failure and no crash.
+   Needs:  ./gradlew buildAndroid producing the bundle; the 2026.45.0 .apkm; a phone attached
+           over adb and UNLOCKED; *Hide feeds* switched ON as a guest
+           (Morphe -> Navigation bar -> Hide feeds). No login is used or expected.
 
   [1] ok    gradle buildAndroid succeeds
   [2] ok    morphe-desktop patches the .apkm clean (V2, re-run)
-  [3] ok    result file: success, no failed patch, hide-nav applied
+  [3] ok    result file: success, no failed patch, hide-nav applied (all five guards matched)
   [4] ok    a phone is attached over adb (waiting for the phone if empty)
-  -- Installed app already carries this patch - keeping its login and toggle state.
-  -- The patched app is fresh and logged out. One-time phone step, no other way around it:
-  -- -> sign in on the phone, join/verify a subreddit or two in the drawer, then Morphe ->
-  -- -> Navigation bar -> Hide Home feed = ON. Then say 'continue S1' and this re-runs,
-  -- -> keeping the signed-in state (no reinstall happens once the patch is present).
-  [5] FAIL  app signed in and set up (owner's one-time phone step)
-        ran:      signed_in_gate
+  [5] FAIL  the phone is unlocked by the owner (adb cannot clear its lock screen)
+        ran:      phone_unlocked
         exit:     1
-        | expected: signed-in Reddit with joined subreddits, Hide Home feed toggled on
-        | found:    the log-in screen
-        | look at:  RUNBOOK.md 'The phone' section; re-run scripts/checkpoint.sh 1 after signing in
-        look at:  look at: the note above
+        | expected: the phone unlocked, with no keyguard showing
+        | found:    the keyguard is showing (secure=true)
+        | look at:  unlock the phone yourself, keep it unlocked, then re-run scripts/checkpoint.sh 1
+        look at:  look at: the keyguard message above
+        stopping here - every later check depends on this one
 
-FAIL: S01 - 1 of 5 checks failed
+FAIL: S01 - 1 of 5 checks failed (stopped early)
 # exit     1
