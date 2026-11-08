@@ -1,15 +1,15 @@
 # Hide Home Feed - Tracker
 
-Design: [design/hide-home-feed.md](design/hide-home-feed.md) · Plan: [build-plan.md](build-plan.md)
+Design: [design/hide-home-feed-v2.md](design/hide-home-feed-v2.md) · Plan: [build-plan.md](build-plan.md)
 
 ## Stage A - Baseline and the riskiest assumption
 
 - [x] [S0 - fork builds and patches 2026.45.0, unmodified](../scripts/checks/S00.sh)
-- [ ] [S1 - the drawer opens on command (riskiest assumption)](../scripts/checks/S01.sh)
+- [ ] [S1 - no feed renders, and Communities opens search](../scripts/checks/S01.sh)
 
 ## Stage B - The mechanism, on the device
 
-- [ ] [S2 - every go-to-Home lands on Communities](../scripts/checks/S02.sh)
+- [ ] [S2 - cold start lands on search; the Home tab is gone](../scripts/checks/S02.sh)
 - [ ] [S3 - the device gauntlet](../scripts/checks/S03.sh)
 
 ## Stage C - Wrap-up
