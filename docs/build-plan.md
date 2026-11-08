@@ -176,6 +176,8 @@ implementer as the next session's first prompt.
 
 ## Changes
 
+- 2026-11-08 - The S1/Communities-tab question and its options are written up for the owner
+  in `docs/decisions/S01-communities-tab.md`. Recommended: move hook 1 into S1.
 - 2026-11-08 - S1's device check hit a design problem, not a code problem: on this phone
   the bottom bar has four tabs (`Home`, `Create`, `Inbox`, `You`); the Communities slot is
   empty (`jn90.a` returns null, v1 failure mode 4). There is no Communities tab to tap, and
