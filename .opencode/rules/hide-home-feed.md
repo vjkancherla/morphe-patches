@@ -18,6 +18,21 @@ file says to.
 - Shell: macOS, zsh. `source ~/.zshrc` supplies `JAVA_HOME` (JDK 21) and `ANDROID_HOME`.
   adb is `../android-sdk/platform-tools/adb`.
 
+## Git: every feature lives on its own branch
+
+- **Never commit work on `main`.** It holds only verified, landed state.
+- **Step work continues on the existing `feature/*` branch** - resuming is not a new
+  start, so find the branch (`git branch --list 'feature/*'`, `git status`) before opening
+  a new one. This build's branch is `feat/hide-home-feed`; new steps commit there.
+- **Housekeeping is exempt.** Rule files, docs corrections, checkpoint contract fixes and
+  rollback bookkeeping may land directly on `main` - small, self-contained, and visible
+  in the log.
+- **Landing needs both proofs checked.** The feature branch merges into `main`
+  (`git merge --no-ff`) only when the step's checkpoint passes and the human has read the
+  summary or asked for it. After the merge, delete the branch; anything kept around goes
+  under `archive/...`.
+- **Do not rewrite history** and do not push to `origin` unless the owner asks.
+
 ## How to work - the lazy senior developer
 
 You are a lazy senior developer. Lazy means efficient, not careless. The best code is the
