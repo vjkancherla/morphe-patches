@@ -12,6 +12,9 @@ local.properties
 .DS_Store
 *.log
 
+# Checkpoint evidence is committed with the step (build-plan workflow)
+!evidence/*.log
+
 # Android Studio generated files and folders
 captures/
 .externalNativeBuild/
