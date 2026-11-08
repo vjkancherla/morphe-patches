@@ -2,16 +2,7 @@
 # S0 - Baseline: the fork builds and patches Reddit 2026.45.0, unmodified.
 # Written from docs/build-plan.md step S0 Check lines. Run via scripts/checkpoint.sh 0.
 . "$(dirname "$0")/lib.sh"
-
-cd "$(dirname "$0")/../.." || exit 1
-
-export JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@21}"
-repo_root="$(pwd)"
-export ANDROID_HOME="${ANDROID_HOME:-$repo_root/../android-sdk}"
-
-APKM="$HOME/Downloads/com.reddit.frontpage_2026.45.0-2645021_3arch_6dpi_23lang_2df4a8b8d38ac6d88146bb8c2f9685c1_apkmirror.com.apkm"
-BUNDLE="patches/build/libs/patches-2.1.0.mpp"
-OUT_DIR="build/s0-check"
+. "$(dirname "$0")/env.sh"
 
 describe "Baseline: the fork builds and patches Reddit 2026.45.0, unmodified" <<'EOF'
 Proves: the toolchain is green before any product code exists, so S1 onward debugs the

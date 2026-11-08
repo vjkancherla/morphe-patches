@@ -1,0 +1,39 @@
+# S01 checkpoint run
+# started  2026-11-08T18:40:06Z
+# commit   8cea1dedb
+# check    f297b184938a325680c9b1b0a37d335e5e8e68ca
+# ---
+== S01  S1: the drawer opens from the patched route (riskiest assumption)
+   Proves: tapping the Communities tab opens Reddit's own subreddit drawer through the
+           injected method - the route the whole design hangs on - and that a fresh,
+           un-signed-in install of the patched build boots clean with the setting off.
+   How:    rebuilds and re-patches (V2 again). On the phone: if Reddit is not already
+           patched with this build, it is reinstalled fresh (this wipes the app's data -
+           that is the accepted disposable test device). A just-fresh install cold-starts
+           and must stay alive with no crash. Then, once the owner has signed in
+           (one-time phone step) and turned Morphe -> Navigation bar -> Hide Home feed on,
+           this checkpoint taps Communities via uiautomator and asserts the drawer's
+           section headers appear on screen.
+   Needs:  ./gradlew buildAndroid producing the bundle; the 2026.45.0 .apkm; a phone
+           attached over adb; for the final check: Reddit signed in with joined
+           subreddits and the toggle on.
+
+  [1] ok    gradle buildAndroid succeeds
+  [2] ok    morphe-desktop patches the .apkm clean (V2, re-run)
+  [3] ok    result file: success, no failed patch, hide-nav applied
+  [4] ok    a phone is attached over adb (waiting for the phone if empty)
+  -- Installed app already carries this patch - keeping its login and toggle state.
+  -- The patched app is fresh and logged out. One-time phone step, no other way around it:
+  -- -> sign in on the phone, join/verify a subreddit or two in the drawer, then Morphe ->
+  -- -> Navigation bar -> Hide Home feed = ON. Then say 'continue S1' and this re-runs,
+  -- -> keeping the signed-in state (no reinstall happens once the patch is present).
+  [5] FAIL  app signed in and set up (owner's one-time phone step)
+        ran:      signed_in_gate
+        exit:     1
+        | expected: signed-in Reddit with joined subreddits, Hide Home feed toggled on
+        | found:    the log-in screen
+        | look at:  RUNBOOK.md 'The phone' section; re-run scripts/checkpoint.sh 1 after signing in
+        look at:  look at: the note above
+
+FAIL: S01 - 1 of 5 checks failed
+# exit     1

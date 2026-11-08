@@ -1,7 +1,7 @@
 # S00 checkpoint run
-# started  2026-11-08T17:45:04Z
-# commit   6450ea3a3
-# check    bec67dd5b1143df5de16efd103a980cc640883a6
+# started  2026-11-08T18:13:29Z
+# commit   8cea1dedb
+# check    32dbed74fa7f0dc3371008a6534e472a9d13dc20
 # ---
 == S00  Baseline: the fork builds and patches Reddit 2026.45.0, unmodified
    Proves: the toolchain is green before any product code exists, so S1 onward debugs the

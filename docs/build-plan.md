@@ -158,6 +158,12 @@ implementer as the next session's first prompt.
 
 ## Changes
 
+- 2026-11-08 - Build paused at S1's owner gate: the requirement changed to
+  *"do not log in at all"*, which removes the drawer's data source (the joined list is
+  account-bound). Crossroads recorded in `HANDOVER.md`; design direction awaits advice.
+  No S1 device gate was closed.
+- 2026-11-08 - S0/S1 checkpoint constants moved to `scripts/checks/env.sh` - the machine
+  paths were duplicated per checkpoint and would have diverged on the next edit
 - 2026-11-08 - V3's check corrected: the diff base is the commit S0 started on
   (6450ea3a3), not `main` - the branch was created ahead of main, so a `main` merge-base
   diffed ten upstream fix commits and failed V3 with 156 phantom lines

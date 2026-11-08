@@ -33,6 +33,10 @@ public class NavigationBarPreferenceCategory extends ConditionalPreferenceCatego
     public void addPreferences(Context context) {
         addPreference(new BooleanSettingPreference(
                 context,
+                Settings.HIDE_HOME_FEED
+        ));
+        addPreference(new BooleanSettingPreference(
+                context,
                 Settings.HIDE_ANSWERS_BUTTON
         ));
         addPreference(new BooleanSettingPreference(

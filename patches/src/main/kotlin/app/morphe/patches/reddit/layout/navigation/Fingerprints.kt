@@ -49,3 +49,45 @@ internal object BottomNavScreenResourceBuilderLegacyFingerprint : Fingerprint(
     ),
     strings = listOf("answersFeatures")
 )
+
+/**
+ * The Communities tab's attach (`L3` in 2026.45.0) without its obfuscated name: the only
+ * void method of the screen taking a View that hands the screen itself to the achievements
+ * proxy. The visually identical variant (`W3` in 2026.45.0) calls the proxy with no
+ * arguments, so this filter alone separates them.
+ *
+ * Never hard-code the class' obfuscated members; index registers come from the matched
+ * call, and the extension always receives the screen as the method's own this-register.
+ */
+internal object CommunitiesTabScreenDrawerProxyFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/communitiestab/compose/CommunitiesTabScreen;",
+    returnType = "V",
+    parameters = listOf("Landroid/view/View;"),
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    filters = listOf(
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            parameters = listOf("Lcom/reddit/screen/ComposeScreen;")
+        )
+    ),
+    strings = listOf("achievementsNotificationsProxy")
+)
+
+/**
+ * The lambda that wires the tab's nav-icon click (`com.reddit.communitiestab.compose.a`
+ * in 2026.45.0) without its obfuscated name: among the screen's fields it reads the one
+ * holding the drawer's event provider. The string only occurs inside this lambda's
+ * method, and the field it null-checks is the provider; the cast to the provider's type
+ * follows the `get()` call right after the field read.
+ *
+ * Obfuscated names are resolved from the matched instructions - never written here.
+ */
+internal object TabScreenClickHandlerProviderFingerprint : Fingerprint(
+    strings = listOf("communityNavIconClickHandler"),
+    filters = listOf(
+        fieldAccess(
+            opcode = Opcode.IGET_OBJECT,
+            definingClass = "Lcom/reddit/communitiestab/compose/CommunitiesTabScreen;"
+        )
+    )
+)
