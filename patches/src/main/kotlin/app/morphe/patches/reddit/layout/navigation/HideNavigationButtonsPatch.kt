@@ -28,6 +28,7 @@ import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
@@ -151,7 +152,7 @@ val hideNavigationButtonsPatch = patch(
                         nop
                     """
                 )
-                verifyInjectionAtEntry(EXTENSION_CLASS, "hideFeedScreen")
+                verifyInjectionAt(0, EXTENSION_CLASS, "hideFeedScreen")
             }
         }
 
@@ -168,7 +169,42 @@ val hideNavigationButtonsPatch = patch(
                     check-cast p1, Lcom/reddit/launch/bottomnav/BottomNavTab;
                 """
             )
-            verifyInjectionAtEntry(EXTENSION_CLASS, "getStartTab")
+            verifyInjectionAt(0, EXTENSION_CLASS, "getStartTab")
+        }
+
+        // Hook 2: the initial-tab default. Injected just after the `sget-object` of the
+        // fallback Home, so a plain cold start highlights (and made current) the start tab.
+        // The register written by the sget is reused; it needs no new register.
+        BottomNavScreenInitialTabFingerprint.let {
+            it.method.apply {
+                val sgetIndex = it.instructionMatches[0].index
+                val tabRegister = getInstruction<OneRegisterInstruction>(sgetIndex).registerA
+                addInstructions(
+                    sgetIndex + 1,
+                    """
+                        invoke-static { v$tabRegister }, $EXTENSION_CLASS->getStartTab(Ljava/lang/Enum;)Ljava/lang/Enum;
+                        move-result-object v$tabRegister
+                        check-cast v$tabRegister, Lcom/reddit/launch/bottomnav/BottomNavTab;
+                    """
+                )
+                verifyInjectionAt(sgetIndex + 1, EXTENSION_CLASS, "getStartTab")
+            }
+        }
+
+        // Hook 3: the selection funnel. Injected at the presenter's entry, so every
+        // programmatic tab selection (bar taps, REDIRECT_TO_HOME, deep links, onboarding)
+        // lands on the start tab when the feature is ON. This is also the hook that makes
+        // the bar's Home tap reach the start screen.
+        BottomNavTabSelectionFingerprint.method.apply {
+            addInstructions(
+                0,
+                """
+                    invoke-static { p1 }, $EXTENSION_CLASS->getStartTab(Ljava/lang/Enum;)Ljava/lang/Enum;
+                    move-result-object p1
+                    check-cast p1, Lcom/reddit/launch/bottomnav/BottomNavTab;
+                """
+            )
+            verifyInjectionAt(0, EXTENSION_CLASS, "getStartTab")
         }
 
         // Hook 4: the Communities tab attaching is when the search page may be opened.
@@ -187,17 +223,21 @@ val hideNavigationButtonsPatch = patch(
 }
 
 /**
- * The design (and the S01 evidence trail) insists the hook call is at instruction index 0,
- * ahead of everything the method originally ran - "at instruction 0000". A misplaced hook
- * is not an acceptable state to ship, so this fails the patch instead of trusting the
- * injection call above.
+ * Every hook call must sit exactly where a missed or mis-registered filter would silently
+ * corrupt the flow - the feed guards and the entry hooks at instruction index 0 ("0000"),
+ * the initial-tab hook immediately after its `sget-object`. This re-reads the instruction at
+ * the claimed index and fails the patch instead of trusting the injection call above.
  */
-private fun MutableMethod.verifyInjectionAtEntry(extensionClass: String, injectionPoint: String) {
-    val first = getInstruction<ReferenceInstruction>(0)
-    if (first.opcode != Opcode.INVOKE_STATIC ||
-        (first.reference as MethodReference).definingClass != extensionClass ||
-        (first.reference as MethodReference).name != injectionPoint
+private fun MutableMethod.verifyInjectionAt(
+    index: Int,
+    extensionClass: String,
+    injectionPoint: String
+) {
+    val found = getInstruction<ReferenceInstruction>(index)
+    if (found.opcode != Opcode.INVOKE_STATIC ||
+        (found.reference as MethodReference).definingClass != extensionClass ||
+        (found.reference as MethodReference).name != injectionPoint
     ) {
-        throw PatchException("$injectionPoint call is not at instruction index 0 of $name")
+        throw PatchException("$injectionPoint call is not at instruction index $index of $name")
     }
 }

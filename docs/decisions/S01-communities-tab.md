@@ -68,6 +68,16 @@ before more code is built on it.
   ran, so the search link never fired; the screen stays a chrome-less blank page with the bar
   (Home Create Inbox You). This is on a boot whose Communities bar slot is empty
   (server-controlled). No workaround attempted, per the owner's stop rule.
+- 2026-11-09, after hooks 2-3 (S2) landed: the cold start still does not attach. But tapping
+  the bar's Home button - hook 3's selection funnel - **opened the search page on the first
+  tap** (once per process), and the app is usable from there. So hooks 3+4 and the search link
+  all work through the normal selection pipeline; only the initial cold-start screen install
+  does not attach. Reverse-engineering during the report (not a fix attempt) found the v1
+  trace's weak spot: `BottomNavScreen`'s stack change listener (`bottomnav/b.java`) derives
+  the highlighted tab from whichever screen the stack shows, and the initial visible screen
+  is not chosen by hook 1's `I5` push - the funnel the bar taps use, not the install call,
+  attaches the tab screens. The no-feed guarantee held the whole time: every route stayed
+  blank, and v2's priority ("a blank page is always an acceptable outcome") is satisfied.
 - Proved standalone, by sending the search link with `am start`: the search page opens as a
   guest with no login prompt and no vote/comment markers. Its zero state before typing shows
   a *Trending* list (trending searches and trending communities) - the owner's-eyes question,
@@ -83,5 +93,10 @@ before more code is built on it.
    After a fresh install: turn *Hide feeds* ON as a guest, then re-run.~~
 
 3. Decide the follow-up to the stop condition (see "Not proved"):
-   why the Communities screen does not attach on this phone, and whether the landing surface
-   or the search launch needs a different route (a design change, not a workaround).
+   - **A. Accept the one-tap landing** - cold start is blank and feed-free (v2's priority:
+     "a blank page is always an acceptable outcome"); tapping the bar's Home button opens
+     search once per process, and everything after that works. S2's checks would assert that
+     flow (`LOOSENED:` - V5's cold start no longer opens search by itself).
+   - **B. One more tracing pass at the real cold-start selection site** - a new fingerprint
+     where the stack's initial screen is actually chosen (not the `I5` push v1 traced). Two
+     fix attempts already ran on this check; the third would be fresh design work.

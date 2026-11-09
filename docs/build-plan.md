@@ -186,6 +186,14 @@ implementer as the next session's first prompt.
 
 ## Changes
 
+- 2026-11-09 - S2's hooks 2-3 (`initial_tab` default read, selection funnel) implemented the
+  structural way, with the same index-0/after-sget read-back verification. The cold start
+  still does not attach the Communities screen, but tapping the bar's Home button now reaches
+  it through hook 3: the Communities screen attaches, the once-per-process search fires, and
+  the app is usable. The funnel path (hooks 3+4, the search link) is proved on the phone; only
+  the initial cold-start screen install does not attach. Ownership decision recorded in
+  `docs/decisions/S01-communities-tab.md`: accept the one-tap landing (LOOSENED: V5) or trace
+  the real cold-start selection site first.
 - 2026-11-09 - S01's device check rewritten as a cold-start check (no tap on a Communities
   tab): it starts the resolved launcher activity with a force-stop, confirms Reddit is the
   focused app before any assertion (a dump of the launcher is a harness error, never a

@@ -88,6 +88,45 @@ internal object BottomNavScreenSelectTabFingerprint : Fingerprint(
 )
 
 /**
+ * Hook 2: the initial-tab default (`e5` in 2026.45.0). The screen's initialization reads the
+ * `com.reddit.arg.initial_tab` extra and falls back to the `Home` enum constant when the
+ * extra is absent, which is every plain cold start. Matched by that string (the only method
+ * of the class holding it) and the `sget-object` of the fallback.
+ */
+internal object BottomNavScreenInitialTabFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/launch/bottomnav/BottomNavScreen;",
+    returnType = "V",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    strings = listOf("com.reddit.arg.initial_tab"),
+    filters = listOf(
+        fieldAccess(
+            opcode = Opcode.SGET_OBJECT,
+            definingClass = "Lcom/reddit/launch/bottomnav/BottomNavTab;",
+            name = "Home"
+        )
+    )
+)
+
+/**
+ * Hook 3: the selection funnel (the presenter's `T` in 2026.45.0). The presenter's class
+ * name is unstable, so no definingClass: the only public final void method taking a tab and
+ * a boolean that reads the `Inbox` enum constant. `BottomNavScreen.N5` has the same
+ * signature but never reads it; `Q` reads `Profile`.
+ */
+internal object BottomNavTabSelectionFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf("Lcom/reddit/launch/bottomnav/BottomNavTab;", "Z"),
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    filters = listOf(
+        fieldAccess(
+            opcode = Opcode.SGET_OBJECT,
+            definingClass = "Lcom/reddit/launch/bottomnav/BottomNavTab;",
+            name = "Inbox"
+        )
+    )
+)
+
+/**
  * The five feed screens (2026.45.0). Their class names are not obfuscated; the render
  * method is (`V2` in this build). Each is matched structurally as the public final void
  * method taking a Compose state and an int, and pinned by the compose key literal the v2

@@ -213,4 +213,9 @@ the change in the plan's Changes log, with `LOOSENED:` if any check proves less.
       and returns `Communities`, but the tab's attach (`L3`) never fires on this phone, so the
       search never opens and the screen stays chrome-less blank. The Communities bar slot was
       empty on the observed boots (server-controlled), and the v1 failure mode 4 expectation
-      ("the screen still opens") did not hold. Deciding this is the S1 gate. (owner)
+      ("the screen still opens") did not hold. Added 2026-11-09 after hooks 2-3: the funnel
+      path does attach it - tapping the bar's Home opens the search page - so the gap is
+      confined to the initial screen install, whose site the v1 trace did not identify. Two
+      fix attempts used the v1 trace's sites; a third needs fresh tracing. The owner decides:
+      accept the one-tap landing (v2's blank-page priority already accepts the cold-start
+      state) or trace further. (owner)
