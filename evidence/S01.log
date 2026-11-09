@@ -1,44 +1,70 @@
 # S01 checkpoint run
-# started  2026-11-08T19:39:45Z
-# commit   2047f3387
-# check    95baa46c1fe44dace027593cbd1e0054bf5acee7
+# started  2026-11-09T21:39:44Z
+# commit   e6866df28
+# check    34449bcc0c2e32028b3a6d5799b9280c077e99df
 # ---
-== S01  S1: no feed renders, and Communities opens search
-   Proves: the five feed screens are guarded at their render method and the drawer route is
-           gone. With *Hide feeds* ON, as a guest with no account, tapping Communities opens
-           Reddit's search page; Back returns to the Communities tab with its top bar over an
-           empty page - no Discover feed - and nothing crashes.
-   How:    rebuilds and re-patches (V2 again; a fingerprint miss on a guard fails the patch, so
-           a clean result proves all five matched). On the phone: installs this build if it is
-           not already there (this wipes the app's data - the accepted disposable test device),
-           gates on the phone being unlocked (adb cannot clear a secure keyguard), cold-starts
-           the app, taps Communities via uiautomator, and asserts the search page. Then presses
-           Back and asserts the search page is gone, no feed markers are present, and the app
-           is still alive. logcat must show no patch failure and no crash.
+== S01  S1: no feed renders, and cold start lands on search
+   Proves: the five feed screens are guarded at their render method, hook 1 replaces the
+           cold-start Home with the Communities start tab (decision Option A; the Home button
+           stays in the bar), and - with *Hide feeds* ON as a guest with no account - a cold
+           start opens Reddit's search page; Back returns to the Communities tab with its top
+           bar over an empty page, its search button opens search again, and nothing crashes.
+   How:    rebuilds and re-patches (V2 again; the result file only reports success if every
+           filter matched and each hook call sits at instruction index 0, which the patch
+           re-checks after injecting). On the phone: installs this build if it is not already
+           there (this wipes the app's data - the accepted disposable test device), gates on
+           the phone being unlocked (adb cannot clear a secure keyguard), cold-starts the app,
+           confirms before anything else that Reddit itself is in the foreground, and asserts
+           the search page. Then presses Back, asserts the search page is gone with the
+           Communities top bar over an empty page, taps that bar's search button and asserts
+           search again. Never taps Home in S1 (Reddit still selects Home until hooks 2-3
+           land). logcat must show no patch failure and no crash.
    Needs:  ./gradlew buildAndroid producing the bundle; the 2026.45.0 .apkm; a phone attached
            over adb and UNLOCKED; *Hide feeds* switched ON as a guest
-           (Morphe -> Navigation bar -> Hide feeds). No login is used or expected.
+           (Morphe -> Navigation bar -> Hide feeds). No login is used or expected. The
+           Communities bar slot is server-controlled and may be absent: no check requires it.
 
   [1] ok    gradle buildAndroid succeeds
   [2] ok    morphe-desktop patches the .apkm clean (V2, re-run)
-  [3] ok    result file: success, no failed patch, hide-nav applied (all five guards matched)
+  [3] ok    result file: success, no failed patch, hide-nav applied (all five guards matched, hooks at index 0)
   [4] ok    a phone is attached over adb (waiting for the phone if empty)
   [5] ok    the phone is unlocked by the owner (adb cannot clear its lock screen)
   -- Installed app already carries this build - keeping its toggle state.
-  [6] FAIL  tap Communities: Reddit's search page opens as a guest, no feed visible
-        ran:      tap_communities_expect_search
+  [6] FAIL  cold start: Reddit's search page opens as a guest, no login, no feed
+        ran:      cold_start_lands_on_search
         exit:     1
-        | expected: a bottom-bar tab labelled Communities
-        | found:    no Communities node in the cold-start dump
-        | seen:     text="Aviva Digital GP" text="Citymapper" text="Delivery " text="GitHub" text="KillApps" text="Lidl Plus" text="Morphe" text="Muzio Player" text="Phone Manager" text="Reddit" text="Seal" text="Shopping" 
+        | expected: Reddit's search page ('Search Reddit' hint) on cold start (hook 1 -> Communities attach -> search)
+        | found:    no search page in the cold-start dump
+        | bar:      text="Home" text="Create" text="Inbox" text="You" 
+        | seen:     text="Create"
+        | text="Home"
+        | text="Inbox"
+        | text="You"
+        | look at:  is *Hide feeds* ON? (Morphe -> Navigation bar -> Hide feeds, as a guest)
+        | look at:  adb logcat -d | grep 'getStartTab failure\|onStartTabAttached failure'
         look at:  look at: uiautomator dump, the Hide feeds toggle, logcat
-  [7] FAIL  Back from search: empty Communities tab, no Discover feed, no crash
-        ran:      back_to_empty_communities_tab
+  [7] ok    Home button stays in the bar (its screen stays feed-free via the guard)
+  [8] FAIL  Back from search: empty page under the Communities top bar, no feed, no crash
+        ran:      back_to_empty_start_screen
         exit:     1
-        | expected: the app still running after Back
-        | found:    the process is gone; look for a crash in logcat
+        | expected: the Communities top bar over the empty page, with its search button
+        | found:    no Search node in the dump - the top bar may not have attached
+        | seen:     text="Create"
+        | text="Home"
+        | text="Inbox"
+        | text="You"
         look at:  look at: uiautomator dump and logcat
-  [8] ok    no patch failure and no crash over the whole run
+  [9] FAIL  the empty start screen's search button opens search again
+        ran:      search_button_reopens_search
+        exit:     1
+        | expected: the Communities top bar's search button
+        | found:    no Search node to tap
+        | seen:     text="Create"
+        | text="Home"
+        | text="Inbox"
+        | text="You"
+        look at:  look at: uiautomator dump
+  [10] ok    no patch failure and no crash over the whole run
 
-FAIL: S01 - 2 of 8 checks failed
+FAIL: S01 - 3 of 10 checks failed
 # exit     1

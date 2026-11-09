@@ -1,7 +1,19 @@
-# Decision needed - S1 cannot tap Communities on this phone
+# Decision - S1 cannot tap Communities on this phone [RESOLVED 2026-11-09]
 
 Date: 2026-11-08. Branch `feat/hide-home-feed`. S1's code is committed; the device half is
 blocked on the question below.
+
+**Resolved.** The owner picked Option A with one amendment (2026-11-09):
+
+- Hook 1 (`getStartTab`, Home -> Communities) moves into S1. Cold start then opens the
+  Communities screen, which launches search, and S1 is re-run as a cold-start check with
+  no tap on a Communities tab.
+- **The Home button stays in the bar.** On this phone the bar has no Communities slot, so
+  hiding Home would leave Create, Inbox and You with no button back to the start screen.
+  The feed guard already keeps Home blank; once hooks 2-3 land, tapping Home goes through
+  hook 3 to the empty Communities screen with its search button.
+- The Communities slot is remote-controlled and can come back, so every check must pass
+  with or without a Communities tab.
 
 ## What was observed
 
@@ -37,18 +49,39 @@ Option A. It is the design's own mechanism (hooks 1-3), just moved one step earl
 this phone has no Communities button to tap. It also proves the search link on the device
 before more code is built on it.
 
-## Already proved / not proved
+## Already proved / not proved (matched to evidence/S01.log, 2026-11-09 run)
 
-- Proved on the machine: build green; patch 29/29 with zero failed (all five guard
-  fingerprints matched); guards present at instruction 0000 of each feed render method;
-  hook 4 present at the Communities attach entry with the real view.
-- Proved on the phone: *Hide feeds* can be turned on as a guest (no login); with it ON, the
-  Home feed does not render (blank page, no feed markers in the dump).
-- Not proved: the search page opens, Back returns to the empty Communities tab, no feed on
-  the other V16 routes. The phone also re-locked within about a minute, so it needs to stay
-  unlocked for the next device run.
+- Proved and recorded in the fresh S01 log: build green; patch applies with no failed patch -
+  the result-file check now carries the "guard at instruction 0000" proof, because the patch
+  re-verified every injected call at instruction index 0 after injecting (five feed guards plus
+  hook 1). The same run's Home-button check records the bar.
+- Done by hand in this session, not recorded by any checkpoint check: *Hide feeds* was turned
+  ON as a guest (Morphe settings reached through the left drawer's *Morphe* entry as a guest -
+  the note's open question is answered "yes"). The checkpoint's back-up evidence for the
+  setting being ON is that the feed guard ran (blank Home, no feed markers).
+- Proved on the phone during the re-run: cold start with hook 1 shows a blank page with no
+  feed markers and the Home button still in the bar, and the app runs with no crash (log-clean
+  check). A guest search shows no login prompt.
+- **Not proved - stop condition:** the redirected Communities screen never attaches on cold
+  start. Temporary morphe-debug logs (removed afterwards) showed `getStartTab` called with
+  `Home` and returning `Communities`, but the Communities tab's attach (`L3`, hook 4) never
+  ran, so the search link never fired; the screen stays a chrome-less blank page with the bar
+  (Home Create Inbox You). This is on a boot whose Communities bar slot is empty
+  (server-controlled). No workaround attempted, per the owner's stop rule.
+- Proved standalone, by sending the search link with `am start`: the search page opens as a
+  guest with no login prompt and no vote/comment markers. Its zero state before typing shows
+  a *Trending* list (trending searches and trending communities) - the owner's-eyes question,
+  screenshot at `evidence/S01-search-zero-state.png`. The keyboard opens automatically
+  (cosmetic, answered).
+- Not proved: tapping Home reaching the empty start screen (hooks 2-3, S2); the rest of V16.
+- The phone re-locks within about a minute; it needs to stay unlocked for device runs.
 
 ## What the owner needs to do
 
-1. Review this note and pick A, B or C.
-2. Unlock the phone and keep it awake for the run (the screen re-locks quickly).
+~~1. Review this note and pick A, B or C.~~
+~~2. Unlock the phone and keep it awake for the run (the screen re-locks quickly).
+   After a fresh install: turn *Hide feeds* ON as a guest, then re-run.~~
+
+3. Decide the follow-up to the stop condition (see "Not proved"):
+   why the Communities screen does not attach on this phone, and whether the landing surface
+   or the search launch needs a different route (a design change, not a workaround).

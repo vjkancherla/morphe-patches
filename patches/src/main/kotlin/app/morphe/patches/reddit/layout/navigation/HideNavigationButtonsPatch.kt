@@ -11,9 +11,11 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.extensions.InstructionExtensions.replaceInstruction
+import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.mutableClassDefBy
 import app.morphe.patcher.patch.patch
 import app.morphe.patcher.util.findFreeRegister
+import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.reddit.misc.settings.settingsPatch
@@ -26,7 +28,9 @@ import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
 import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
 import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
 
 private const val EXTENSION_CLASS =
@@ -123,6 +127,8 @@ val hideNavigationButtonsPatch = patch(
 
         // endregion
 
+        // region hooks 1-4 (the v1 mechanism) and the feed guard
+
         // Feed guard: every feed is a ComposeScreen, so blocking the render method covers
         // every route - drawer rows, deep links and direct pushes. A fingerprint miss must
         // fail the patch; there is deliberately no catch here.
@@ -133,17 +139,36 @@ val hideNavigationButtonsPatch = patch(
             LatestFeedScreenFingerprint,
             NewsFeedScreenFingerprint,
         ).forEach { fingerprint ->
-            fingerprint.method.addInstructionsWithLabels(
+            fingerprint.method.apply {
+                addInstructionsWithLabels(
+                    0,
+                    """
+                        invoke-static {}, $EXTENSION_CLASS->hideFeedScreen()Z
+                        move-result v0
+                        if-eqz v0, :show
+                        return-void
+                        :show
+                        nop
+                    """
+                )
+                verifyInjectionAtEntry(EXTENSION_CLASS, "hideFeedScreen")
+            }
+        }
+
+        // Hook 1: the start-tab replacement. Injected at the entry of the screen's only
+        // void method taking a single tab, so every installed first screen (cold start and
+        // reused-activity deep links) lands on the start tab when the feature is ON.
+        // Home(false) stays as it is: the Home button is never removed from the bar.
+        BottomNavScreenSelectTabFingerprint.method.apply {
+            addInstructions(
                 0,
                 """
-                    invoke-static {}, $EXTENSION_CLASS->hideFeedScreen()Z
-                    move-result v0
-                    if-eqz v0, :show
-                    return-void
-                    :show
-                    nop
+                    invoke-static { p1 }, $EXTENSION_CLASS->getStartTab(Ljava/lang/Enum;)Ljava/lang/Enum;
+                    move-result-object p1
+                    check-cast p1, Lcom/reddit/launch/bottomnav/BottomNavTab;
                 """
             )
+            verifyInjectionAtEntry(EXTENSION_CLASS, "getStartTab")
         }
 
         // Hook 4: the Communities tab attaching is when the search page may be opened.
@@ -158,5 +183,21 @@ val hideNavigationButtonsPatch = patch(
         // endregion
 
         setExtensionIsPatchIncluded(EXTENSION_CLASS)
+    }
+}
+
+/**
+ * The design (and the S01 evidence trail) insists the hook call is at instruction index 0,
+ * ahead of everything the method originally ran - "at instruction 0000". A misplaced hook
+ * is not an acceptable state to ship, so this fails the patch instead of trusting the
+ * injection call above.
+ */
+private fun MutableMethod.verifyInjectionAtEntry(extensionClass: String, injectionPoint: String) {
+    val first = getInstruction<ReferenceInstruction>(0)
+    if (first.opcode != Opcode.INVOKE_STATIC ||
+        (first.reference as MethodReference).definingClass != extensionClass ||
+        (first.reference as MethodReference).name != injectionPoint
+    ) {
+        throw PatchException("$injectionPoint call is not at instruction index 0 of $name")
     }
 }

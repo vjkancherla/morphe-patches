@@ -74,7 +74,20 @@ internal object CommunitiesTabScreenDrawerProxyFingerprint : Fingerprint(
     strings = listOf("achievementsNotificationsProxy")
 )
 
-/*
+/**
+ * Hook 1: the start-tab replacement (`I5` in 2026.45.0). Public final, returns void, and the
+ * only method of `BottomNavScreen` taking a single `BottomNavTab` parameter. It installs the
+ * first screen on the stack, so injecting at its entry redirects every internal "go to Home"
+ * except the initial_tab default (hook 2) and the programmatic selections (hook 3).
+ */
+internal object BottomNavScreenSelectTabFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/launch/bottomnav/BottomNavScreen;",
+    returnType = "V",
+    parameters = listOf("Lcom/reddit/launch/bottomnav/BottomNavTab;"),
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL)
+)
+
+/**
  * The five feed screens (2026.45.0). Their class names are not obfuscated; the render
  * method is (`V2` in this build). Each is matched structurally as the public final void
  * method taking a Compose state and an int, and pinned by the compose key literal the v2

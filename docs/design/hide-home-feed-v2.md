@@ -1,6 +1,6 @@
 # Hide Home Feed - Design Note (v2: no feeds, land on Search, no login)
 
-Date: 2026-11-08
+Date: 2026-11-08, amended 2026-11-09 (Home button stays).
 Supersedes: `hide-home-feed.md` (v1), for the landing surface only. v1 stays as the record, and
 its Hooks 1-3, "Why these sites" table, failure modes 1, 3 and 4, and build facts still apply
 unless changed below. Verified against Reddit 2026.45.0 only.
@@ -15,9 +15,18 @@ search page and not the feed page and I will search for the subreddit I want to 
 
 1. **No feed screen ever renders.** Reddit's five feed screens draw nothing. This is the
    guarantee, and it does not depend on navigation or timing.
-2. The Home tab leaves the bar, and every internal "go to Home" lands on the `Communities` tab
-   (v1 hooks 1-3, unchanged). That tab now shows only Reddit's top bar over an empty page.
+2. **The Home button stays in the bar** (owner amendment, 2026-11-09, recording the
+   `docs/decisions/S01-communities-tab.md` decision: Option A with one change) and leads to
+   the empty start screen: every internal "go to Home" lands on the `Communities` tab
+   (v1 hooks 1-3, unchanged), so tapping the bar's Home tab also arrives there through
+   hook 3. That tab now shows only Reddit's top bar over an empty page, with its search
+   button. Never hook the list builder into removing Home for this feature.
 3. On the first attach of that tab in each process, the app opens Reddit's own search page.
+
+The Communities bar slot is server-controlled: this phone hides it (`jn90.a` returns null,
+v1 failure mode 4) and a future build may restore it, so every device check must pass with
+or without a Communities tab. The feed guard, not navigation, is what keeps the app
+feed-free.
 
 The app runs in guest mode throughout. No drawer auto-open, no stored subreddit list, no account.
 When OFF, the app behaves as it does today.
@@ -124,8 +133,9 @@ public static void onStartTabAttached(View view) {
 The once-per-process flag is what prevents a loop. Do not remove it.
 
 Product files remain the six allowed in v1, with the guards added to the navigation
-`Fingerprints.kt` and `HideNavigationButtonsPatch.kt`. `Home(false)` still becomes
-`Home(Settings.HIDE_HOME_FEED.get())`, and `hideNavigationTab` still protects the start tab. Change
+`Fingerprints.kt` and `HideNavigationButtonsPatch.kt`. `Home(false)` stays as it is: the Home
+button is never hidden (owner amendment, 2026-11-09). `hideNavigationTab` still protects the
+start tab, so *Hide Discover or Communities button* cannot remove the landing surface. Change
 the base-`values` title to `Hide feeds`, since the toggle now covers all five. Keep the setting key.
 
 ## Behaviour to expect
@@ -133,6 +143,8 @@ the base-`values` title to `Hide feeds`, since the toggle now covers all five. K
 - Open app: search page. Search, tap a community, read. Back returns to search (Reddit's own stack).
 - Back from search: the `Communities` tab with its top bar and an empty page. Its search button
   returns to search. Back again exits.
+- Tap the Home tab: hook 3 lands it on the empty `Communities` screen with its search button.
+- Tapping the empty screen's Communities tab again reopens the same empty screen.
 - If the search link fails: the same empty page and a logged exception. Nothing crashes, no feed.
 - Guest mode: reading only. No join, vote or comment.
 
@@ -155,7 +167,7 @@ Device runs need the owner to keep the phone unlocked: it has a lock screen that
 
 | # | Check |
 |---|---|
-| V5 | Setting ON, cold start: search page shows, no Home tab, no login prompt, no feed at any moment |
+| V5 | Setting ON, cold start: search page shows, no feed at any moment, Home button present, no login prompt |
 | V6 | Type a subreddit name, open it from the results: its feed loads as a guest. Back returns to search |
 | V7 | Back from search: top bar over an empty page, no crash. Its search button opens search. Back again exits or stays |
 | V12 | Open a `reddit.com/r/<sub>` link from another app, cold: the subreddit stays on top, no search page over it |
@@ -164,11 +176,12 @@ Device runs need the owner to keep the phone unlocked: it has a lock screen that
 
 **The ones that matter:** V16 is the requirement. V17 is the promise to anyone who leaves it off.
 
-**S1 redefined:** remove `signed_in_gate` from `scripts/checks/S01.sh`. S1 now proves, with the toggle on
-and all five guards in place: tapping `Communities` opens the search page, Back shows the empty
-tab with no Discover feed, and no crash. Hooks 1-3 land in S2 as planned, so V5's cold start and
-the rest of V16 are proved there. Log the change in the plan's Changes log, with `LOOSENED:`
-if any check proves less.
+**S1 redefined a second time (2026-11-09):** hook 1 (`getStartTab`) now lands in S1, hooks 2-3
+stay in S2. S1 proves, with the toggle on and all five guards in place: a cold start opens the
+search page, Back shows the empty tab with no Discover feed, the tab's search button reopens
+search, and no crash. Home taps are not tested in S1: Reddit still treats Home as the selected
+tab until hooks 2-3 land, so S2 proves that tapping Home reaches the empty start screen. Log
+the change in the plan's Changes log, with `LOOSENED:` if any check proves less.
 
 ## Roads not taken
 
@@ -182,10 +195,22 @@ if any check proves less.
 
 ## Open questions
 
-- [ ] Does the query-less link show the search page, for a guest, with community suggestions? (S1)
-- [ ] Does the search page show feed-like content before typing? (S1, owner's eyes)
-- [ ] Does the keyboard open automatically? Cosmetic. (S1)
-- [ ] Does an early return from the render method leave any screen in a bad state, for example a
-      spinner or a crash on tab re-select? (S1)
-- [ ] Is Morphe settings reachable from the avatar menu as a guest, to turn the toggle on? (S1)
-- [ ] Does `view.post` fire early enough on cold start, or does the link race Reddit's startup? (S1)
+- [x] ~~Does the query-less link show the search page, for a guest, with community
+      suggestions?~~ Resolved 2026-11-09 on the phone: it opens (via an external `am start`;
+      the hook-4 launch itself is unreachable until the Communities screen attaches, see the
+      stop condition in `../decisions/S01-communities-tab.md`).
+- [x] ~~Does the search page show feed-like content before typing?~~ Partially resolved
+      2026-11-09: it shows a *Trending* list (trending searches and trending communities),
+      vote/comment-free in the dump; the screenshot is `evidence/S01-search-zero-state.png`.
+      The owner decides whether that is feed-like enough to need a guard.
+- [x] ~~Does the keyboard open automatically?~~ Yes (2026-11-09). Cosmetic.
+- [ ] Does an early return from the render method leave any screen in a bad state, for example
+      a spinner or a crash on tab re-select? (blocked until the screen attaches)
+- [x] ~~Is Morphe settings reachable from the avatar menu as a guest, to turn the toggle on?~~
+      Resolved 2026-11-09: as a guest, the left drawer has a *Morphe* entry that opens the
+      Morphe settings.
+- [ ] **Why does the redirected `CommunitiesTabScreen` not attach on cold start?** Hook 1 runs
+      and returns `Communities`, but the tab's attach (`L3`) never fires on this phone, so the
+      search never opens and the screen stays chrome-less blank. The Communities bar slot was
+      empty on the observed boots (server-controlled), and the v1 failure mode 4 expectation
+      ("the screen still opens") did not hold. Deciding this is the S1 gate. (owner)

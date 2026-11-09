@@ -33,6 +33,7 @@ public final class HideNavigationButtonsPatch {
     }
 
     private static final String SEARCH_PAGE_URL = "https://www.reddit.com/search";
+    private static final String START_TAB_NAME = "Communities";
 
     private static boolean startSearchRequested;
 
@@ -85,8 +86,31 @@ public final class HideNavigationButtonsPatch {
             return false;
         }
 
+        // The start tab holds the landing surface (search opens from its attach), so it is
+        // never hidden from the bar - not even by the "Hide Discover or Communities button"
+        // option, which maps to the same tab.
+        if (Settings.HIDE_HOME_FEED.get() && START_TAB_NAME.equals(tab.name())) {
+            return false;
+        }
+
         NavigationButton button = labelToButton.get(tab.name());
         return button != null && button.shouldHide;
+    }
+
+    /**
+     * Injection point. Replaces Home with the start tab. Any failure returns original.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static Enum<?> getStartTab(@Nullable Enum<?> original) {
+        try {
+            if (original == null || !Settings.HIDE_HOME_FEED.get() || !"Home".equals(original.name())) {
+                return original;
+            }
+            return Enum.valueOf((Class) original.getDeclaringClass(), START_TAB_NAME);
+        } catch (Exception ex) {
+            Logger.printException(() -> "getStartTab failure", ex);
+            return original;
+        }
     }
 
     /**
