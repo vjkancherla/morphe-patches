@@ -375,12 +375,13 @@ is improvised.
 
 - Open app (cold start): the search page opens by itself, as a guest, keyboard up. No login
   prompt anywhere.
-- Search, tap a community, read. Back returns to search (Reddit's own stack). From search, the
-  first Back closes the keyboard; continuing Back then shows the *Communities top bar* (its
-  menu holds Morphe settings). No feed ever shows.
-- Tap the bar's Home: search opens **each time**, and the empty `Communities` screen (top bar
-  over a blank page) is attached underneath, so its menu still reaches Morphe settings after
-  Back. The bare blank Home page is no longer reachable through taps.
+- Back from that first search: the first Back closes the keyboard, the second leaves the
+  search page - and the bottom bar's blank page (the guarded `HomePagerScreen`) stays; no
+  feed, no crash. **The Communities top bar is NOT attached on this path** (measured on the
+  phone 2026-11-10: bar labels only for 30+ s) - the cold start never ran a tab selection.
+- Tap the bar's Home from anywhere: search opens **each time** (hook 6), and after Back the
+  *Communities top bar* is over the empty screen (its menu holds Morphe settings; measured).
+  The bare blank Home page is no longer reachable through taps.
 - Tapping the empty screen's Communities tab again reopens the same empty screen (no new
   search - that path is the start tab staying put, not a launch).
 - Hide feeds' zero state: *Trending* and *Trending Communities* are gone; any recent searches
@@ -404,10 +405,11 @@ is improvised.
 
 ## Verification
 
-Replaced and extended by the third amendment: V5 restored to auto-open (no LOOSENED any more),
-Home-tap rows, V18-V20 added for the hook-6 tap flow, the Inbox toggle and the trending
-removal. All rows stand unless amended below. Device runs need the owner to keep the phone
-unlocked: it has a lock screen that adb cannot clear.
+Replaced and extended by the third amendment: V5 restored to auto-open, Home-tap rows,
+V18-V20 added for the hook-6 tap flow, the Inbox toggle and the trending removal. All rows
+stand unless amended below. Device runs need the owner to keep the phone unlocked: it has a
+lock screen that adb cannot clear. Measured on the phone 2026-11-10: the top bar and its
+menu attach with a lag (several seconds), so S01 polls for them.
 
 | # | Check |
 |---|---|

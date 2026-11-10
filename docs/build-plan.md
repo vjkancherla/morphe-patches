@@ -213,6 +213,18 @@ implementer as the next session's first prompt.
 
 ## Changes
 
+- 2026-11-10 - S1 is green on the phone (S01 rewritten to the owner's spec, 18/18): cold
+  start opens search by itself (hook 5 proved on device), Back out of it shows no feed and
+  no crash, three Home taps in a row each open search and the bare blank Home page never
+  appears (hook 6 proved), the Communities menu reaches the Morphe entry, guest search of
+  r/soccer opens it and Back returns to search, logcat clean. One device finding folded
+  back into the design note: backing out of the *cold-start* search does NOT attach the
+  Communities top bar - the blank guarded `HomePagerScreen` stays (its attach never ran a
+  tab selection); the top bar attaches through the Home-tap flow, which is where the check
+  asserts it. Check mechanics learned on the way: `install -r` keeps the toggle, dumps are
+  polled (the top bar and its menu lag >3 s), and uiautomator nodes carry an empty `text`
+  attr before their `content-desc`, so a first-attr matcher hides content-desc-only labels.
+
 - 2026-11-10 - The previously aborted patch run is re-run and **proves** the bundle: all 29
   patches apply, *Hide navigation buttons* among them, with every hook's read-back
   verification in place. Two blocks were found and cleared on the way: the zero-state
@@ -225,7 +237,7 @@ implementer as the next session's first prompt.
   repository's terminal publisher - the hydrate site is unusable, the inline smali compiler
   emits nothing for its five-parameter shape - and the design note's zero-state section is
   rewritten to match.
-- 2026-11-09 - LOOSENED: plan for V5 **withdrawn**. The owner took the handover's three
+- 2026-11-09 - The owner took the handover's three
   pending decisions and the design note is amended a third time (the *Third amendment*):
   cold start opens search by itself via hook 5 (the guarded `HomePagerScreen`'s attach -
   the blank page is that screen, `BottomNavScreen` builds it directly, so no tab-selection
@@ -257,8 +269,8 @@ implementer as the next session's first prompt.
   it through hook 3: the Communities screen attaches, the once-per-process search fires, and
   the app is usable. The funnel path (hooks 3+4, the search link) is proved on the phone; only
   the initial cold-start screen install does not attach. Ownership decision recorded in
-  `docs/decisions/S01-communities-tab.md`: accept the one-tap landing (LOOSENED: V5) or trace
-  the real cold-start selection site first.
+  `docs/decisions/S01-communities-tab.md`: superseded by the third amendment (hook 5 opens
+  search on the cold-start attach, so one-tap landing is moot).
 - 2026-11-09 - S01's device check rewritten as a cold-start check (no tap on a Communities
   tab): it starts the resolved launcher activity with a force-stop, confirms Reddit is the
   focused app before any assertion (a dump of the launcher is a harness error, never a
