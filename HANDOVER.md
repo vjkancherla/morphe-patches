@@ -1,135 +1,194 @@
 # HANDOVER - Hide Home Feed, latest status
 
-Written 2026-11-09 (after the hooks 2-3 device round). The build is stopped on the owner's
-stop rule, with **two explicit decisions pending** (below). A reviewer only needs this file
-plus the artefacts it points to.
+Written 2026-11-09 late evening, mid-implementation of the owner's three decisions. The next
+session must start at **"First actions tomorrow"** below. A reviewer needs this file plus the
+artefacts it points to.
 
-## Settled design (v2, amended 2026-11-09)
+## Owner decisions (third amendment) - all three taken and in the tree
 
-`docs/design/hide-home-feed-v2.md`. When *Navigation bar → Hide feeds* is ON:
+1. **Cold start opens search by itself** (one-tap landing rejected) - implemented as **hook 5**.
+2. **The bar's Home button opens search on every tap; Create/Inbox hideable** - implemented as
+   **hook 6** plus a new *Hide Inbox button* setting (key `morphe_hide_inbox_button`, default
+   off, drives both `Inbox` and `UnifiedInbox`, placed after the Create toggle).
+3. **Remove the Trending / Trending Communities sections from the search page before typing** -
+   implemented as the zero-state filter; **not yet device-proven** (needs the S03 A/B dump).
 
-1. **No feed screen ever renders** (the five feed screens are guarded at their render
-   method - discover, home, popular, latest, news). This is the guarantee and it held
-   through every device run.
-2. The **Home button stays in the bar** (owner amendment to v2: hiding it left no way back
-   on a phone whose bar has no Communities slot) and leads to the empty start screen: every
-   internal go-to-Home lands on the Communities tab (hooks 1-3).
-3. On that tab's first attach per process, the app opens Reddit's own search page
-   (`https://www.reddit.com/search`, ACTION_VIEW, own package, once-per-process flag).
-
-Guest mode only; no login. The Communities bar slot is server-controlled and may be absent,
-so every device check must pass with or without a Communities tab.
-
-Decision note `docs/decisions/S01-communities-tab.md` is **RESOLVED**: Option A (hook 1
-moved into S1 as a cold-start check) with the Home-stays amendment.
+The design note `docs/design/hide-home-feed-v2.md` has the full *Third amendment* sections
+(hooks 5-6, shared launch, the search zero state, V18-V20 rows); build-plan S1-S3 and todo are
+rewritten to match; the Changes log has the three new entries. The `LOOSENED:` plan for V5 is
+withdrawn - auto-open is restored, S01 must prove it.
 
 ## Where we are (exact state)
 
-- Branch `feat/hide-home-feed`, never pushed. Newer commits, oldest first:
-  - `c27fc50f5` adopt the v2 no-feed, search-landing design
-  - `2047f3387` five feed guards + hook 4 (view-passing search launch), S1 checks
-  - `cc4da9217` S01 app-launch fix (resolved launcher activity) + S1 device-block record
-  - `e6866df28` the missing-Communities-tab decision note (now resolved)
-  - `5485c366e` **hook 1** (start-tab replacement) + S01 rewritten as cold-start check
-  - `231b6aaf9` **hooks 2-3** (`initial_tab` default, selection funnel)
-- Read-back verification is part of the patch now: after every injection the patch re-reads
-  the claimed instruction index and fails the patch if the hook call is not there (5 feed
-  guards at index 0, hook 1 at index 0, hook 2 right after its sget-object, hook 3 at index
-  0). A fingerprint miss also fails the patch. Both are recorded by S01's result-file check.
-- `scripts/checkpoint.sh 0` is green any time. `checkpoint.sh 1` fails honestly at the
-  cold-start check (the stop condition below); `checkpoint.sh 2/3` do not exist yet.
-- The phone currently has the hooks-2-3 build installed with *Hide feeds* ON (guest).
+- Branch `feat/hide-home-feed`, never pushed. **Nothing committed this session.** The working
+  tree (all on top of `53d20059e`) has: docs (build-plan, design note, todo), the six allowed
+  product files (`Settings.java`, base strings.xml,
+  `NavigationBarPreferenceCategory.java`, extension `HideNavigationButtonsPatch.java`,
+  navigation `Fingerprints.kt` / `HideNavigationButtonsPatch.kt`), and **one pre-existing
+  uncommitted edit of `.opencode/rules/hide-home-feed.md`** (a "Consulting Claude" section,
+  +70 lines) that came from an earlier session - it is not part of this work; raise it with
+  the owner before committing it.
+- `./gradlew buildAndroid` is green and produced the bundle with all new code.
+- **The last morphe-desktop patch run was aborted mid-run** (the owner stopped it) - so the
+  *fresh bundle has NOT yet been proven to patch*. First thing tomorrow: run the patch again
+  and check the result file (command at the bottom).
+- Hooks so far in the patch: feed guards (committed), hooks 1-3 (committed), hook 4 (this
+  session: unchanged site, now with a read-back verify), hook 5 (new), hook 6 (new) and the
+  zero-state filter (new). Every injection has a `verifyInjectionAt` read-back that fails the
+  patch if the call is not exactly where claimed.
+- Device: phone `5e7ec3a8` attached and unlocked earlier today; it still runs the hooks-2-3
+  build with *Hide feeds* ON (guest). `install -r` keeps data and the toggle.
 
-## What is proved on the phone (all fresh, repeated)
+## What the hooks are (one line each, so tomorrow does not re-derive)
 
-- With the toggle ON, **no feed ever renders**: cold start shows a blank page with no feed
-  markers, the app stays alive, logcat shows no patch failure and no crash - across every
-  run, including the unpatched-path states. The no-feed guarantee holds everywhere tried.
-- The bar shows `Home Create Inbox You` (the Communities slot was server-emptied on every
-  observed boot; on the first boot after a fresh install, once, it showed `Communities`).
-- Morphe settings are reachable **as a guest** through the left drawer's *Morphe* entry,
-  and *Hide feeds* was switched ON as a guest (the old open question is answered).
-- Tapping the bar's **Home** button (hook 3's funnel) attaches the Communities screen and
-  **opens the search page once per process** - the whole hooks 3+4+search-link pipeline
-  works. The search page, as a guest, shows no login prompt and no vote/comment markers,
-  and the keyboard opens by itself. Screenshot: `evidence/S01-search-zero-state.png`.
-- Pressing Back from that search page returns to the same blank state (no crash).
+- **Hook 5**: injected at index 0 of `HomePagerScreen`'s attach override (the blank cold-start
+  page is the guarded HomePagerScreen; `BottomNavScreen` builds it directly, so no
+  tab-selection site can decide the first screen). It passes the View to hook 4's extension
+  method `onStartTabAttached(View)`.
+- **Hook 6**: injected right after the tap-handler's bar-item read (instruction index 5 of
+  `Lcom/reddit/launch/bottomnav/a;->invoke`, an `iget-object` of field type
+  `BottomNavTab`) - replaces the register with `onBottomTabTapped`, which (feature ON, tab
+  Home) launches search and returns `Communities`; the handler continues normally, so the
+  start tab still attaches underneath and its top bar (Morphe settings) stays reachable.
+- **Search launch**: one shared `openSearchPage(Context)`; ~1 s shared debounce
+  (`SystemClock.elapsedRealtime`, stamped before the attempt); attach hooks fire once per
+  process through `searchLaunched` and store the View's context in a `WeakReference` for the
+  tap path; a tap that launches sets the flag too; every failure logged, never a crash.
+- **Zero-state filter**: `filterSearchZeroState(List, CharSequence)` removes, in place,
+  shelves whose rows are trending; it is injected at the repository's terminal publisher and
+  filters **only when the query is empty** (typed queries keep their suggestions).
 
-## The stop condition (second fix attempt used)
+## Key findings of today (do not re-derive)
 
-**Cold start does not land on search.** `getStartTab` fires and returns `Communities`
-(proved with temporary logs, removed since), and with hooks 2-3 in, the selected tab is
-Communities too - but the redirected Communities screen **never attaches** (`L3`, hook 4,
-never runs on cold start), so the search never opens by itself and the screen stays a
-chrome-less blank page. Diagnosis from reverse-reading (not a fix attempt): `BottomNavScreen`'s
-stack change listener (`bottomnav/b.java`) derives the highlighted tab from whichever screen
-the stack shows, and the initial visible screen is not picked by hook 1's `I5` push - the
-selection funnel the bar taps use is what attaches tab screens, which is why the Home tap
-works and the cold-start install does not. v1's "I5 installs the first screen" does not
-hold for the render path. No workaround attempted, per the owner's stop rule.
+- **The inline smali compiler emits NOTHING for a 5-param `(List, FilterValues, Z, List,
+  ContinuationImpl)` method** - the zero state hydrate method. Reproduced directly against
+  `InlineSmaliCompiler.Companion.compile` (jars in the temp recipe below); one- and
+  three-parameter methods compile fine. This is why the filter lives on the repository's
+  terminal publisher `a(List, String, TypeaheadQueryMode)` (three clean parameters): the same
+  flow ends there, and the query check confines it to the zero state. Do not move the hook
+  back to the hydrate method.
+- **HomePagerScreen attach (`L3` in 2026.45.0)** vs its detach twin (`W3`): both public final
+  void, one `View`, call super first. Attach is 2 registers / 4 instructions; detach is
+  5 registers / 26 (dismiss + coroutine). `HomePagerScreenAttachFingerprint` matches by that
+  shape (`custom`); `HomePagerScreenDetachFingerprint` pins the twin by the string
+  `feedTransitionBehaviorProvider`; the patch asserts exactly 2 View-param void overrides
+  exist and that the two fingerprints hit different methods.
+- **Hook 6's handler**: synthetic `Function0` in `com.reddit.launch.bottomnav` (class `a`),
+  `invoke()` contains the strings `loggedOutBottomSheetScreenFactory` and
+  `feedRefreshPolicy` (unique to it); the tab read is `iget-object v3, v4,
+  Lwf6;->a:Lcom/reddit/launch/bottomnav/BottomNavTab;` at instruction index 5; the
+  already-selected branch (`N5(tab, true)`) and the funnel (`c.T(tab, false)` = hook 3) both
+  come later, which is why rewriting before the comparisons fixes repeated Home taps.
+- **Trending data model** (from the zero-state network parse `a.e`, read from bytecode):
+  a section shelf is `SearchTypeaheadList(id=, children=...)` (`vzf0`); the *Trending*
+  searches rows are `SearchTrendingQuery(` (`bzf0`); the *Trending Communities* rows are
+  expected to be `SearchTypeaheadSuggestion(` (`v6g0`); recent rows are
+  `SearchRecentSkeletonQuery(` (`yjf0`) before and `SearchRecentQuery(` (`ojf0`) after
+  hydration. These are GraphQL/telemetry model names that appear in the classes' own
+  `toString()` - they are domain strings, not obfuscated symbols. The shelf's children list
+  is read at runtime by reflecting the shelf object's list-typed field (no obfuscated field
+  name needed); an unrecognised shelf is never dropped.
+- **Zero-state flow**: `handleGlobalZeroStateRequestOrdered` (`d`, cache list
+  `w8r0.f` + timestamp `w8r0.g`) -> on miss `fetchFromNetworkAndCache` (`b`) with an empty
+  query -> `hydrateRecentSkeletonItems` (`e`) fills recent skeletons from local history ->
+  the terminal publisher publishes `mv10` to the state flow and returns `q5k0(lve0(...))`.
+  **This flow is from bytecode reading; the extension's row-prefix filter is the one attempt
+  allowed** - if the device A/B dump still shows the sections (or loses recent searches),
+  stop and report what was found; do not improvise a second site.
+- **Bytecode dumper** (may be gone by tomorrow; rebuild if needed): a small dexlib2 program in
+  `/var/folders/t5/d576h93s1mj1kkt4ykx7hg5r0000gn/T/opencode/bcdump/` (`Dump.java`, `bc.sh`,
+  dexes already extracted from the .apkm's base.apk). Recipe: extract `classes*.dex` from the
+  `.apkm`'s `base.apk`, compile `Dump.java` with `smali-dexlib2-4220ae75f7.jar` +
+  `smali-util` + `smali` from the Gradle cache (`com.github.MorpheApp.smali/...4220ae75f7`),
+  run `Dump <dexdir> <class descriptor> [method-substring]`.
+- A **fresh `install -r` over the hooks-2-3 build keeps data and the toggle**, so the S01
+  rewrite must always install the freshly patched build (no marker-based skip) - the stale-
+  build fix dropped from the owner's brief; not yet written into `scripts/checks/S01.sh`.
 
-**Net user experience on this build:** open app → blank, feed-free page → one tap on the
-bar's Home → search page → the app is fully usable, feed-free, guest.
+## First actions tomorrow, in order
 
-## Decisions pending (owner)
+1. Rerun the aborted patch and confirm the result file is clean (the bundle is current):
+   `java -jar ../tools/morphe-desktop-2.1.1-all.jar patch -p patches/build/libs/patches-2.1.0.mpp -o build/ckpt/patched.apk -r build/ckpt/result.json $HOME/Downloads/com.reddit.frontpage_2026.45.0-2645021_3arch_6dpi_23lang_2df4a8b8d38ac6d88146bb8c2f9685c1_apkmirror.com.apkm`
+   then check `build/ckpt/result.json`: success true, `failedPatches` empty, and
+   *Hide navigation buttons* applied. Also confirm with a fresh `./gradlew buildAndroid`
+   first (the tree is uncommitted; nothing should have drifted).
+2. Commit the tree (docs + the six product files) as one step commit - but NOT the
+   `.opencode/rules` edit (owner's call). Suggested message: `feat(Reddit): Add hooks 5-6,
+   Hide Inbox toggle and the search zero-state filter (S1, third amendment)`.
+3. Rewrite `scripts/checks/S01.sh` to the owner's spec: always `install -r` the fresh build;
+   launcher-dump-is-a-harness-error rule stays; assert, with the toggle ON as a guest:
+   cold start opens search by itself (no login, no feed); Back until keyboard closed and the
+   search page is gone - no feed, no crash; Home tap opens search, Back shows the Communities
+   top bar; three or more Home taps (closing search between) each open search and the bare
+   blank Home page never appears; the Communities menu reaches the Morphe entry; search a
+   subreddit, open it, Back returns to search; logcat clean. Drop the old
+   `installed_patched`/toggle-gate path. Remove any `LOOSENED:` plan for V5 wording from the
+   plan's Changes log (the auto-open is restored).
+4. `scripts/checkpoint.sh 1` until green; commit the evidence log with the step.
+5. Write `scripts/checks/S02.sh` and `S03.sh`: S02 - hooks 2-3 device run (cold start, Home
+   route, setting OFF) as its step check; S03 - every remaining V row incl. V12 (cold
+   external `r/<sub>` link stays on top, no search over it) and all V16 routes **with and
+   without a Communities tab** (add/remove the tab is a server state - exercise what is
+   reachable and record which variant ran). Hooks 2-3 are committed but S2 is not done until
+   its check exists and passes.
+6. Trending last: reproduce the owner's pre-typing state facts on the phone, take the before
+   dump of the empty search page, install the filter build, take the after dump. Sections
+   gone + recent searches kept = V20 green; anything else = stop and report (one attempt
+   only, per the owner's brief).
 
-1. **Cold-start landing.**
-   - **A. Accept the one-tap landing (recommended).** Cold start blank is acceptable under
-     v2's own priority ("a blank page is always an acceptable outcome"); search is one tap
-     away. S2's checks then assert this flow with `LOOSENED:` on V5's auto-opening search.
-   - **B. One more tracing pass** at the true cold-start selection site - a new fingerprint,
-     fresh design work. This would be a third fix attempt on the same check (the rules allow
-     it only as deliberate new design work, not as a third patch improvisation).
-2. **A Search button in the bottom bar** (owner asked 2026-11-09: "the bottom bar has
-   Home+Create+Inbox+You - I will never use Create and Inbox - add search there?").
-   Options offered: (1) hide Create/Inbox, keep search one tap away via Home- no new UI;
-   (2) re-point Create or Inbox's click to the search intent, icon stays Reddit's
-   (misleading icon); (3) a true Search slot with Reddit's search icon/label - fresh design
-   work and a device probe of the bar composable. Option 3 may make decision 1-B moot.
-3. **The search zero state needs eyes**: the guest search page shows a *Trending* list
-   before typing (trending searches + trending communities). Feed-like or acceptable?
-   Screenshot in `evidence/S01-search-zero-state.png`.
+## Facts still to reproduce on the phone (owner's message today; not yet in evidence/)
 
-## Grounded facts (do not re-derive)
+- The cold-start blank page is the guarded HomePagerScreen (already established by tracing
+  and by the phone facts; hook 5's attach-side approach must now prove itself on device).
+- From search, the first Back closes the keyboard; the second Back shows the Communities top
+  bar (`Open community menu`, `search on Reddit`) - the handover's old "same blank state"
+  was wrong for this flow.
+- Repeated Home taps landing the bare blank Home page (via the already-selected branch) -
+  hook 6 must prove they cannot any more.
+- A left swipe on the bare blank Home page opens no drawer; Morphe settings are reached
+  through the Communities top bar's menu - S01/S03 must keep that reachable.
+- Guest search "soccer" -> open r/soccer -> Back returns to search (worked yesterday).
 
-- **Toolchain:** `./gradlew buildAndroid` → `patches/build/libs/patches-2.1.0.mpp`;
-  `java -jar ../tools/morphe-desktop-2.1.1-all.jar patch -p <bundle> -o <out> -r
-  <result.json> $HOME/Downloads/com.reddit.frontpage_2026.45.0-2645021_3arch...apkm`.
-- **Device:** adb at `../android-sdk/platform-tools/adb` (not on PATH), serial `5e7ec3a8`;
-  a secure keyguard adb cannot clear - gate on `dumpsys window policy` `mIsShowing=false`
-  and keep the owner's phone awake; ColorOS install confirmation sheet is polled and tapped
-  by `install_fresh`. A reinstall of the patched build over itself keeps data and settings
-  (same signature); a fresh install wipes the toggle - the guest-toggle route above makes
-  re-enabling scriptable.
-- **uiautomator on this build:** the bar labels come through as text (`Home`, `Create`,
-  `Inbox`, `You`); the search page shows as `Search Reddit` (its own hint text and a Back
-  node). The chrome-less blank state shows only the bar labels.
-- **Patch powders:** match structurally; `re6`/`jn90`/`hv2` are obfuscated build IDs used
-  above only for reading the decompiled sources in `../reddit-decompiled/sources/` (raw
-  jadx; never hard-coded into the patch).
-- **Marking:** the installed build is identified by the `getStartTab` marker string in its
-  dexes (S01's `installed_patched`). Any future build without a new marker string looks
-  identical to the installed one and will be silently kept by `install -r` checks.
+## Stop conditions (owner's brief today, all still binding)
+
+Phone locked or not attached; a login prompt; any feed visible at any moment (subreddit
+pages the owner opens excepted); search launching twice or looping; Morphe settings
+unreachable; cold start still not landing on search after hook 5. For the trending attempt:
+if the one site fails the A/B dump, stop and report - no second site.
+
+## Grounded facts (from the previous handover, unchanged)
+
+- **Toolchain:** `./gradlew buildAndroid` -> `patches/build/libs/patches-2.1.0.mpp`; the
+  patch command is in "First actions" above. `source ~/.zshrc` gives JDK 21 + ANDROID_HOME;
+  adb at `../android-sdk/platform-tools/adb` (not on PATH), serial `5e7ec3a8`; gate on
+  `dumpsys window policy` `mIsShowing=false`; the ColorOS install sheet is polled and tapped
+  by the check's `confirm_install_sheet`.
+- **uiautomator on this build:** bar labels come through as text (`Home`, `Create`, `Inbox`,
+  `You`); the search page shows as `Search Reddit`; the chrome-less blank state shows only
+  bar labels. A dump of anything that is not Reddit is a harness error.
+- **Patch powders:** match structurally; the obfuscated build IDs (`re6`/`jn90`/`hv2`) are
+  only for reading `../reddit-decompiled/sources/` - never hard-coded.
+- **Tooling quirk worth remembering:** multiline `addInstructions` quietly dropped its first
+  line on the 5-param hydrate method - do not trust multiline inserts on methods where the
+  inline compiler is near its edge; `verifyInjectionAt` (read-back) is what caught it, and
+  single-line injections with a void extension method are the proven shape (hook 4/5).
 
 ## Where the artefacts live
 
-- Design: `docs/design/hide-home-feed-v2.md` (amended; v1 `hide-home-feed.md` stays as the
-  hooks/why-sites record), decision: `docs/decisions/S01-communities-tab.md`.
-- Plan + Changes log: `docs/build-plan.md`; tracker `docs/todo.md` (S0 ticked; S1 open);
-  step summary `docs/steps/S01.md` (rewritten for the cold-start check).
-- Checks: `scripts/checks/S0{0,1}.sh`; evidence `evidence/S00.log`, `evidence/S01.log`
-  (the fresh failed run - checkpoint output, never edited) and the zero-state screenshot.
+- Design: `docs/design/hide-home-feed-v2.md` (third amendment included); decision note
+  `docs/decisions/S01-communities-tab.md`; plan + Changes log `docs/build-plan.md`; tracker
+  `docs/todo.md`; step summaries `docs/steps/`; stage reports `docs/stages/`.
+- Checks: `scripts/checks/S0{0,1}.sh` (S01 still the OLD one - rewrite it before running);
+  evidence `evidence/S00.log`, `evidence/S01.log`, `evidence/S01-search-zero-state.png`
+  (never edited).
 - Working rules: `.opencode/rules/hide-home-feed.md`; review workflow `docs/REVIEW-PROMPT.md`
-  (runs at stage end, different model; no stage report yet because S1 is not green).
+  (runs at stage end; no stage report yet - S1 is not green).
 - Runbook for the human: `RUNBOOK.md`.
 
 ## Rules that still bind
 
 Guest mode only; never hard-code obfuscated names; a guard fingerprint miss must fail
-patching; do not guard `CommunitiesTabScreen`; keep the once-per-process flag on the search
-launch; only the six allowed product files (`Settings.java`, base `strings.xml`,
-`NavigationBarPreferenceCategory.java`, extension `HideNavigationButtonsPatch.java`,
-navigation `Fingerprints.kt` and `HideNavigationButtonsPatch.kt`); never edit an evidence
-log; `LOOSENED:` on any check that proves less; stop and report (no workarounds) on the
-five stop conditions in the owner's brief (locked phone, broken search link, feed-like
-search zero state, visible feed anywhere, cold start not attaching the Communities screen).
+patching; do not guard `CommunitiesTabScreen` (and do not guard the search page itself - the
+filter is data-side); keep the once-per-process flag on the attach launch; only the six
+allowed product files; never edit an evidence log; `LOOSENED:` on any check that proves less;
+do not push the branch; `.opencode/rules/` is never edited by the implementer.

@@ -14,6 +14,7 @@ import app.morphe.patcher.methodCall
 import app.morphe.patcher.newInstance
 import com.android.tools.smali.dexlib2.AccessFlags
 import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 
 internal val ADD_METHOD_CALL = methodCall(
     opcode = Opcode.INVOKE_INTERFACE,
@@ -127,6 +128,57 @@ internal object BottomNavTabSelectionFingerprint : Fingerprint(
 )
 
 /**
+ * Hook 5: the guarded Home screen's attach (the `L3` override in 2026.45.0). The only
+ * public final void method of the screen taking one `View` that calls its super twin first,
+ * makes exactly one further part call and returns - two registers, four instructions. Its
+ * detach twin ([HomePagerScreenDetachFingerprint] below) has the same signature but
+ * dismisses the banner sheet and launches the on-detach coroutine, so it is five registers
+ * and double-digit instructions; the size difference separates them without any obfuscated
+ * name.
+ */
+internal object HomePagerScreenAttachFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/feedslegacy/switcher/impl/homepager/compose/HomePagerScreen;",
+    returnType = "V",
+    parameters = listOf("Landroid/view/View;"),
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    custom = { _, _ -> true }
+)
+
+/**
+ * Hook 5's detach twin, matched only to prove the pair of View-parameter overrides is
+ * complete and no third one lies in between (the patch asserts exactly two exist and that
+ * they are distinct methods).
+ */
+internal object HomePagerScreenDetachFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/feedslegacy/switcher/impl/homepager/compose/HomePagerScreen;",
+    returnType = "V",
+    parameters = listOf("Landroid/view/View;"),
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    strings = listOf("feedTransitionBehaviorProvider")
+)
+
+/**
+ * Hook 6: the bottom bar's tap handler. A synthetic `kotlin.jvm.functions.Function0`
+ * implementation in the `com.reddit.launch.bottomnav` package whose `invoke()` reads the
+ * tapped tab off the bar item into the register every later comparison uses - including the
+ * already-selected branch that previously let repeated Home taps skip the selection funnel.
+ * Matched by its two property-name strings (both unique to it app-wide) and the single
+ * `iget-object` of a `BottomNavTab`-typed field.
+ */
+internal object BottomNavTabTapHandlerFingerprint : Fingerprint(
+    returnType = "Ljava/lang/Object;",
+    parameters = listOf(),
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    strings = listOf("loggedOutBottomSheetScreenFactory", "feedRefreshPolicy"),
+    filters = listOf(
+        fieldAccess(
+            opcode = Opcode.IGET_OBJECT,
+            type = "Lcom/reddit/launch/bottomnav/BottomNavTab;"
+        )
+    )
+)
+
+/**
  * The five feed screens (2026.45.0). Their class names are not obfuscated; the render
  * method is (`V2` in this build). Each is matched structurally as the public final void
  * method taking a Compose state and an int, and pinned by the compose key literal the v2
@@ -171,4 +223,36 @@ internal object NewsFeedScreenFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     parameters = listOf("L", "I"),
     filters = listOf(literal(1045476250))
+)
+
+/**
+ * The search zero state's terminal publisher (the repository's curate-and-publish method in
+ * 2026.45.0, class `com/reddit/typeahead/data/f` - the class name is not obfuscated, the
+ * method's is). Every zero-state request ends here - the cached branch of the global
+ * zero-state request and the empty-query branch of the network fetch - with the finished
+ * shelf list as its first parameter and the query string as its second; its output is both
+ * the published state flow and the returned response, so dropping the Trending shelves at
+ * its entry removes the *Trending* and *Trending Communities* sections from the page while
+ * recent-search shelves stay. Typed queries also pass through it, but the extension filters
+ * only when the query is empty, so typed suggestions are untouched.
+ *
+ * Matched purely by the signature (public final, `(List, String, TypeaheadQueryMode)` -
+ * the only method of the class with it); the obfuscated method name is never hard-coded.
+ * The concrete return type is NOT pinned: a full class-name return type declaration compares
+ * as EQUALS and the method's real return is an obfuscated wrapper class (it would have to be
+ * hard-coded, which this codebase never does) - omitting it reduces the candidates to the
+ * methods of the class matching the parameter signature, which is unique.
+ * Verified against APK bytecode, since the hydrate method the shelves also pass through
+ * fails to decompile - and that shape (List, FilterValues, boolean, List,
+ * ContinuationImpl) cannot be injected into at all: the patcher's inline smali compiler
+ * emits nothing for it (reproduced against the compiler, 2026-11-09).
+ */
+internal object SearchZeroStateFilterFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/typeahead/data/f;",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    parameters = listOf(
+        "Ljava/util/List;",
+        "Ljava/lang/String;",
+        "Lcom/reddit/search/domain/model/TypeaheadQueryMode;"
+    )
 )

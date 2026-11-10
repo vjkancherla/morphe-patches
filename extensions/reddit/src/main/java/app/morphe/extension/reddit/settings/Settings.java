@@ -38,6 +38,7 @@ public class Settings extends BaseSettings {
     public static final BooleanSetting HIDE_DISCOVER_BUTTON = new BooleanSetting("morphe_hide_discover_button", FALSE, true);
     public static final BooleanSetting HIDE_GAMES_BUTTON = new BooleanSetting("morphe_hide_games_button", FALSE, true);
     public static final BooleanSetting HIDE_HOME_FEED = new BooleanSetting("morphe_hide_home_feed", FALSE, true);
+    public static final BooleanSetting HIDE_INBOX_BUTTON = new BooleanSetting("morphe_hide_inbox_button", FALSE, true);
     public static final BooleanSetting HIDE_JOIN_CONVERSATION_BUTTON = new BooleanSetting("morphe_hide_join_conversation_button", FALSE);
     public static final BooleanSetting HIDE_MEDIA_VIEWER_OVERLAY = new BooleanSetting("morphe_hide_media_viewer_overlay", FALSE);
     public static final BooleanSetting HIDE_ABOUT_SHELF = new BooleanSetting("morphe_hide_about_shelf", FALSE, true);

@@ -211,10 +211,85 @@ val hideNavigationButtonsPatch = patch(
         // Injected at entry, not after the proxy call: this build reuses the View parameter
         // register for the achievements proxy before that call, so `p1` there is the proxy.
         // At entry `p1` is still the attached View the extension needs for a context.
-        CommunitiesTabScreenDrawerProxyFingerprint.method.addInstructions(
-            0,
-            "invoke-static { p1 }, $EXTENSION_CLASS->onStartTabAttached(Landroid/view/View;)V"
-        )
+        CommunitiesTabScreenDrawerProxyFingerprint.method.apply {
+            addInstructions(
+                0,
+                "invoke-static { p1 }, $EXTENSION_CLASS->onStartTabAttached(Landroid/view/View;)V"
+            )
+            verifyInjectionAt(0, EXTENSION_CLASS, "onStartTabAttached")
+        }
+
+        // Hook 5: the guarded Home screen's attach. BottomNavScreen builds that screen
+        // directly in a separate method, so no tab-selection site decides the first screen
+        // on cold start - the landing is caught where the guarded screen itself attaches,
+        // and passes its View to the same extension method as hook 4. Matched structurally
+        // against its detach twin (same signature, dismisses and launches a coroutine), and
+        // the uniqueness of the pair is asserted below.
+        val attach = HomePagerScreenAttachFingerprint.matchOrNull()
+            ?: throw PatchException("HomePagerScreen attach method not found")
+        val detach = HomePagerScreenDetachFingerprint.matchOrNull()
+            ?: throw PatchException("HomePagerScreen detach method not found")
+        if (attach.originalMethod.name == detach.originalMethod.name) {
+            throw PatchException("HomePagerScreen attach and detach fingerprints matched the same method")
+        }
+        var viewParamMethods = 0
+        for (method in attach.originalClassDef.methods) {
+            val accessFlags = method.accessFlags
+            if ((accessFlags and AccessFlags.PUBLIC.value) != 0 &&
+                (accessFlags and AccessFlags.FINAL.value) != 0 &&
+                method.returnType == "V" &&
+                method.parameterTypes.size == 1 &&
+                method.parameterTypes[0] == "Landroid/view/View;"
+            ) {
+                viewParamMethods++
+            }
+        }
+        if (viewParamMethods != 2) {
+            throw PatchException(
+                "HomePagerScreen has $viewParamMethods View-parameter void overrides, expected exactly 2"
+            )
+        }
+        attach.method.apply {
+            addInstructions(
+                0,
+                "invoke-static { p1 }, $EXTENSION_CLASS->onStartTabAttached(Landroid/view/View;)V"
+            )
+            verifyInjectionAt(0, EXTENSION_CLASS, "onStartTabAttached")
+        }
+
+        // Hook 6: the bottom bar's tap handler. The tapped tab is rewritten (with search
+        // opened for Home taps) right after the bar item is read, before any comparison, so
+        // the already-selected branch can no longer skip the selection funnel and land on
+        // the bare blank Home page. The handler's own flow is never short-circuited, so the
+        // start tab still attaches underneath.
+        BottomNavTabTapHandlerFingerprint.method.apply {
+            val igetIndex = BottomNavTabTapHandlerFingerprint.instructionMatches[0].index
+            val tabRegister = getInstruction<TwoRegisterInstruction>(igetIndex).registerA
+            addInstructions(
+                igetIndex + 1,
+                """
+                    invoke-static { v$tabRegister }, $EXTENSION_CLASS->onBottomTabTapped(Ljava/lang/Enum;)Ljava/lang/Enum;
+                    move-result-object v$tabRegister
+                    check-cast v$tabRegister, Lcom/reddit/launch/bottomnav/BottomNavTab;
+                """
+            )
+            verifyInjectionAt(igetIndex + 1, EXTENSION_CLASS, "onBottomTabTapped")
+        }
+
+        // The search zero state's Trending removal: trending shelves are dropped from
+        // the shelf list in place as it enters the repository's publisher, which runs for
+        // every request. The extension filters only when the query is empty, so the
+        // pre-typing page alone is affected.
+        // The publisher has 28 registers, so the parameter registers exceed the 4-bit
+        // register list of `invoke-static` and the call goes through `/range` instead
+        // (the inline smali compiler rejects the 4-bit form with "Invalid register: v25").
+        SearchZeroStateFilterFingerprint.method.apply {
+            addInstructions(
+                0,
+                "invoke-static/range { p1 .. p2 }, $EXTENSION_CLASS->filterSearchZeroState(Ljava/util/List;Ljava/lang/CharSequence;)V"
+            )
+            verifyInjectionAt(0, EXTENSION_CLASS, "filterSearchZeroState")
+        }
 
         // endregion
 
@@ -234,7 +309,8 @@ private fun MutableMethod.verifyInjectionAt(
     injectionPoint: String
 ) {
     val found = getInstruction<ReferenceInstruction>(index)
-    if (found.opcode != Opcode.INVOKE_STATIC ||
+    if (found.opcode != Opcode.INVOKE_STATIC &&
+        found.opcode != Opcode.INVOKE_STATIC_RANGE ||
         (found.reference as MethodReference).definingClass != extensionClass ||
         (found.reference as MethodReference).name != injectionPoint
     ) {

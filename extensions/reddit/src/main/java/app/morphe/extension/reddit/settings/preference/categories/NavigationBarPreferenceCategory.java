@@ -49,6 +49,10 @@ public class NavigationBarPreferenceCategory extends ConditionalPreferenceCatego
         ));
         addPreference(new BooleanSettingPreference(
                 context,
+                Settings.HIDE_INBOX_BUTTON
+        ));
+        addPreference(new BooleanSettingPreference(
+                context,
                 Settings.HIDE_DISCOVER_BUTTON
         ));
         addPreference(new BooleanSettingPreference(

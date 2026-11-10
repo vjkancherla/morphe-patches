@@ -36,6 +36,7 @@ To use an older version, you must &lt;b>uninstall&lt;/b> Reddit and then install
     <string name="morphe_hide_discover_button_title">Hide Discover or Communities button</string>
     <string name="morphe_hide_games_button_title">Hide Games button</string>
     <string name="morphe_hide_home_feed_title">Hide feeds</string>
+    <string name="morphe_hide_inbox_button_title">Hide Inbox button</string>
 
     <string name="morphe_screen_sidebar_title">Sidebar</string>
     <string name="morphe_hide_recently_visited_shelf_title">Hide Recently Visited shelf</string>

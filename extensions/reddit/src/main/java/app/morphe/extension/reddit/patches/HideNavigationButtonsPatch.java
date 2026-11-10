@@ -10,13 +10,18 @@ package app.morphe.extension.reddit.patches;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.SystemClock;
 import android.view.View;
 
 import androidx.annotation.Nullable;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.lang.ref.WeakReference;
+
+import java.util.Iterator;
 
 import app.morphe.extension.reddit.settings.Settings;
 import app.morphe.extension.shared.Logger;
@@ -34,8 +39,17 @@ public final class HideNavigationButtonsPatch {
 
     private static final String SEARCH_PAGE_URL = "https://www.reddit.com/search";
     private static final String START_TAB_NAME = "Communities";
+    private static final String HOME_TAB_NAME = "Home";
+    private static final long SEARCH_LAUNCH_DEBOUNCE_MS = 1000;
 
-    private static boolean startSearchRequested;
+    private static final String SEARCH_SHELF_PREFIX = "SearchTypeaheadList(";
+    private static final String[] SEARCH_TRENDING_ROW_PREFIXES = {
+            "SearchTrendingQuery(", "SearchTypeaheadSuggestion("
+    };
+
+    private static boolean searchLaunched;
+    private static long lastSearchLaunchAtMs;
+    private static WeakReference<Context> attachedContext = new WeakReference<>(null);
 
     private static final Map<String, NavigationButtonLegacy> labelToButtonLegacy = new HashMap<>();
     private static final Map<String, NavigationButton> labelToButton = new HashMap<>();
@@ -103,13 +117,40 @@ public final class HideNavigationButtonsPatch {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static Enum<?> getStartTab(@Nullable Enum<?> original) {
         try {
-            if (original == null || !Settings.HIDE_HOME_FEED.get() || !"Home".equals(original.name())) {
+            if (original == null || !Settings.HIDE_HOME_FEED.get() || !HOME_TAB_NAME.equals(original.name())) {
                 return original;
             }
             return Enum.valueOf((Class) original.getDeclaringClass(), START_TAB_NAME);
         } catch (Exception ex) {
             Logger.printException(() -> "getStartTab failure", ex);
             return original;
+        }
+    }
+
+    /**
+     * Injection point. Rewrites the bottom bar's tapped tab and opens search for Home taps.
+     * Any failure returns the original tab.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static Enum<?> onBottomTabTapped(@Nullable Enum<?> tapped) {
+        try {
+            if (tapped == null || !Settings.HIDE_HOME_FEED.get() || !HOME_TAB_NAME.equals(tapped.name())) {
+                return tapped;
+            }
+            Context context = attachedContext.get();
+            if (context != null) {
+                // Every Home tap opens search, and also sets the once-per-process flag
+                // so the attach hooks cannot open a second search over this one.
+                searchLaunched = true;
+                openSearchPage(context);
+            }
+            // Do not short-circuit the caller: the tap handler keeps running, the start
+            // tab attaches underneath, and its top bar (with Morphe settings) stays
+            // reachable.
+            return Enum.valueOf((Class) tapped.getDeclaringClass(), START_TAB_NAME);
+        } catch (Exception ex) {
+            Logger.printException(() -> "onBottomTabTapped failure", ex);
+            return tapped;
         }
     }
 
@@ -121,23 +162,114 @@ public final class HideNavigationButtonsPatch {
     }
 
     /**
-     * Injection point. Opens Reddit's search page once per process.
+     * Injection point (hooks 4 and 5). Opens Reddit's search page on the first attach of
+     * the start tab or of the guarded Home screen, once per process.
      */
     public static void onStartTabAttached(View view) {
-        if (!Settings.HIDE_HOME_FEED.get() || startSearchRequested) {
+        if (!Settings.HIDE_HOME_FEED.get()) {
             return;
         }
-        // Set before firing. The link re-enters MainActivity, which can re-attach this tab.
-        startSearchRequested = true;
-        view.post(() -> {
-            try {
-                Context context = view.getContext();
-                context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(SEARCH_PAGE_URL))
-                        .setPackage(context.getPackageName()));
-            } catch (Exception ex) {
-                Logger.printException(() -> "onStartTabAttached failure", ex);
+        // Serves the tap path (hook 6), which has no View of its own.
+        attachedContext.clear();
+        attachedContext = new WeakReference<>(view.getContext());
+        if (searchLaunched) {
+            return;
+        }
+        // Set before firing. The link re-enters MainActivity, which can re-attach tabs.
+        searchLaunched = true;
+        view.post(() -> openSearchPage(view.getContext()));
+    }
+
+    /**
+     * One shared search launch: debounced, failures logged, never crashing.
+     */
+    private static void openSearchPage(@Nullable Context context) {
+        try {
+            long now = SystemClock.elapsedRealtime();
+            if (now - lastSearchLaunchAtMs < SEARCH_LAUNCH_DEBOUNCE_MS) {
+                return;
             }
-        });
+            // Stamped before the attempt: for the debounce window it does not matter
+            // whether this launch succeeded.
+            lastSearchLaunchAtMs = now;
+            context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(SEARCH_PAGE_URL))
+                    .setPackage(context.getPackageName()));
+        } catch (Exception ex) {
+            Logger.printException(() -> "openSearchPage failure", ex);
+        }
+    }
+
+    /**
+     * Injection point. Removes the Trending sections (trending searches and trending
+     * communities) from the search page's pre-typing state, dropping their shelves from
+     * the list in place. Runs for every typeahead publish, so the query decides: only an
+     * empty query (the zero state) is filtered. Recent-search shelves stay. Failures
+     * leave the list untouched.
+     */
+    public static void filterSearchZeroState(@Nullable List<?> items, @Nullable CharSequence query) {
+        try {
+            if (items == null || items.isEmpty() || !Settings.HIDE_HOME_FEED.get()) {
+                return;
+            }
+            if (query == null || query.length() != 0) {
+                return;   // a typed query: its suggestions are not the zero state
+            }
+            Iterator<?> iterator = items.iterator();
+            while (iterator.hasNext()) {
+                Object item = iterator.next();
+                if (item != null && isTrendingShelf(item)) {
+                    iterator.remove();   // the whole shelf, so no empty section header is left
+                }
+            }
+        } catch (Throwable ex) {
+            Logger.printException(() -> "filterSearchZeroState failure", ex);
+        }
+    }
+
+    private static boolean isTrendingShelf(@Nullable Object shelf) {
+        if (shelf == null) {
+            return false;
+        }
+        // The models are domain data: their toString() starts with the GraphQL model name,
+        // which is not an obfuscated symbol (the same class of string the shelf rows use).
+        if (!shelf.toString().startsWith(SEARCH_SHELF_PREFIX)) {
+            return false;
+        }
+        List<?> rows = listFieldOf(shelf);
+        if (rows == null || rows.isEmpty()) {
+            return false;   // an unrecognised shelf is never dropped
+        }
+        for (Object row : rows) {
+            if (row == null) {
+                continue;
+            }
+            String rowName = row.toString();
+            for (String prefix : SEARCH_TRENDING_ROW_PREFIXES) {
+                if (rowName.startsWith(prefix)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The shelf's row list lives in its only list-typed field, which has an obfuscated
+     * name. Reading it by declared type keeps any obfuscated name out of this code.
+     */
+    @Nullable
+    private static List<?> listFieldOf(Object shelf) {
+        for (Field field : shelf.getClass().getDeclaredFields()) {
+            if (field.getType() == List.class) {
+                field.setAccessible(true);
+                try {
+                    return (List<?>) field.get(shelf);
+                } catch (IllegalAccessException ex) {
+                    return null;
+                }
+            }
+        }
+        return null;
     }
 
     private enum NavigationButton {
@@ -146,11 +278,11 @@ public final class HideNavigationButtonsPatch {
         Communities(Settings.HIDE_DISCOVER_BUTTON.get()),
         Games(Settings.HIDE_GAMES_BUTTON.get()),
         Home(false),
-        Inbox(false),
+        Inbox(Settings.HIDE_INBOX_BUTTON.get()),
         MyCommunities(Settings.HIDE_DISCOVER_BUTTON.get()),
         Post(Settings.HIDE_CREATE_BUTTON.get()),
         Profile(false),
-        UnifiedInbox(false);
+        UnifiedInbox(Settings.HIDE_INBOX_BUTTON.get());
 
         final boolean shouldHide;
 

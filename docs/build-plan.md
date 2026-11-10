@@ -10,7 +10,12 @@ Runbook: [../RUNBOOK.md](../RUNBOOK.md)
 
 v2 changed the requirement: the app stays logged out, opens on Reddit's search page, and
 must never show a feed. No-feed is the top priority; a blank page is acceptable. The owner's
-2026-11-09 amendment keeps the Home button in the bar, leading to the empty start screen.
+2026-11-09 amendments keep the Home button in the bar; the third amendment (2026-11-09,
+owner decisions on the handover's pending items) makes the cold start open search by itself
+via the guarded Home screen's attach (hook 5, because `BottomNavScreen` builds that screen
+directly, so no tab-selection site lets the first screen change), makes every Home tap open
+search through the bar-tap handler (hook 6), adds a *Hide Inbox button* toggle driving
+`Inbox` and `UnifiedInbox`, and removes the search zero state's Trending sections.
 
 This is a map. Steps get reordered, merged, split or skipped as the build teaches us
 things - each change is one line in the **Changes** log at the bottom.
@@ -30,19 +35,22 @@ Rows marked (v2) are the v2 note's redefinitions; all other rows are v1's, still
 | V2 patch of 2026.45.0 | S00 C2, re-run at S01/S02/S03 |
 | V3 diff discipline | S00 C3, re-run at every step's commit |
 | V4 setting OFF behaves stock | S02 device test |
-| V5 (v2, amended 2026-11-09) setting ON, cold start: search page, no feed, Home button present, no login | S01 (cold start via hook 1), S02 (re-run) |
-| V6 (v2) subreddit from results as a guest; Back returns to search | S03 device run |
-| V7 (v2) Back from search: empty tab, search button, Back exits | S01 (empty tab after Back), S03 (search button and exit) |
+| V5 (v3) setting ON, cold start: **search opens by itself** (hook 5), no feed, Home button present, no login | S01 (device), S02 (re-run) |
+| V6 (v3) subreddit from results as a guest; Back returns to search | S01 device, S03 re-run |
+| V7 (v3) Back from search: no feed, no crash; top-bar search button works | S01 (Back flow), S03 (search button and exit) |
 | V8 coexists with other hides | S03 device run |
 | V9 Back never reaches Home | S03 device run |
 | V10 resume/REDIRECT_TO_HOME | S03 device run |
 | V11 notification post → Back | S03 device run (needs a human finger if adb cannot tap the notification) |
-| V12 (v2) sub deep link, cold: subreddit stays on top, no search over it | S03 device run |
+| V12 (v3) sub deep link, cold: subreddit stays on top, no search over it | S03 device run |
 | V13 root deep link | S03 device run |
 | V14 toggles together | S03 device run |
 | V15 rotation + recents | S03 device run |
-| V16 (v2) each route shows no feed | S01 (all five guards present), S03 (root, Popular, Communities re-tap, drawer rows, REDIRECT_TO_HOME) |
-| V17 (v2) setting OFF renders Home/Discover/Popular normally | S02 device test |
+| V16 (v3) each route shows no feed, **with and without a Communities tab** | S01 (all five guards present), S03 (root, Popular, Communities re-tap, drawer rows, REDIRECT_TO_HOME) |
+| V17 (v3) setting OFF renders Home/Discover/Popular normally | S02 device test |
+| V18 (v3) every Home tap opens search, bare blank Home never after a tap flow; Communities top bar and its Morphe menu stay reachable | S01 device |
+| V19 (v3) Hide Inbox button toggle drives Inbox + UnifiedInbox | S03 device run |
+| V20 (v3) search zero state has no Trending sections; recent searches stay | S03 device run (before-and-after dump) |
 
 **The device gate.** S01 onward need a phone. Each device step starts by polling
 `adb devices` (Android SDK at `../android-sdk`, `platform-tools/adb`); when it is empty the
@@ -72,78 +80,97 @@ extension, as context only.
   `--result-file`; the patched output exists and the result file reports no failed patch (V2)
 - `git diff --stat` base..HEAD limited to `patches/` and `extensions/` is empty (V3)
 
-### S1. No feed renders, and cold start lands on search
+### S1. No feed renders, cold start lands on search, every Home tap opens search
 
 **Goal:** with *Hide feeds* ON, the drawer route is gone, all five feed screens are guarded
-at their render method, and a cold start lands on Reddit's search page (hook 1, decision
-`../decisions/S01-communities-tab.md`: Option A, Home button stays). No feed can render on
-any route, and the app still works as a guest with no login.
-**Read:** the v2 note's Feed guard and Landing on search sections (and its 2026-11-09
-amendment); the five screen classes; the extension patch; the navigation fingerprints file.
-**Do:** remove the v1 drawer route (`StartTabScreenInterface`, `START_DRAWER_DELAY_MS`,
-`TabScreenClickHandlerProviderFingerprint`, and the `patch_openCommunityDrawer` block). Add
-five structural fingerprints for the feed render methods (public final, void, `(L, I)`,
-filtered by the v2 compose key where the signature is not unique - `HomePagerScreen` has
-four). Inject the guard at index 0 of each. Add hook 1: `getStartTab` and its fingerprint
-(public final void on `BottomNavScreen`, single `BottomNavTab` parameter) injected at index
-0 of the matched method; `Home(false)` stays as it is and `hideNavigationTab` keeps the
-start tab from being hidden. Change hook 4 to pass its `View` and open
-`https://www.reddit.com/search` once per process through an `ACTION_VIEW` intent restricted
-to the app's package. Keep the setting key; change the base-`values` title to *Hide feeds*.
-A fingerprint miss on any guard must fail the patch.
+at their render method, a cold start lands on Reddit's search page by itself (hook 5 at the
+guarded Home screen's attach - `BottomNavScreen` builds that screen directly, so tab
+selection cannot decide the first screen; the owner's third-amendment decision), and every
+tap on the bar's Home opens search and lands the empty Communities screen underneath (hook
+6), keeping the Communities top bar and its Morphe-settings menu reachable. No feed can
+render on any route, and the app still works as a guest with no login.
+**Read:** the v2 note's Feed guard, Third amendment (hooks 5-6, shared launch), Search zero
+state, and Verification sections; the five screen classes; the extension patch; the
+navigation fingerprints file.
+**Do:** hooks 1-4 as landed (the drawer-route removal from the v2 note; the five render
+guards; hook 1 start-tab replacement; hook 2 initial-tab default; hook 3 selection funnel;
+hook 4 the start tab's attach passing its View). Add hook 5: the guarded Home screen's
+attach override (one View, calls super, tells itself apart from its detach twin
+structurally, match unique), passing the View to hook 4's extension method. Add hook 6 at
+the bar's tap handler (bottomnav Function0 carrying `loggedOutBottomSheetScreenFactory` and
+`feedRefreshPolicy`): replace the tapped-tab register right after the bar-item read, before
+any comparison, with `onBottomTabTapped`. Rewrite the extension's search launch as the one
+shared debounced helper (WeakReference context, ~1 s debounce, failures logged, flag set so
+attach hooks cannot double-launch; tap path returns the mapped tab when the context is
+empty). Add the *Hide Inbox button* setting driving `Inbox` and `UnifiedInbox`, next to the
+Create toggle. Device checks always install the freshly patched build with `install -r`
+(data kept) - no marker-based skip. Search zero state trending removal is deliberately
+**last** (after S1-S3 are green), so it cannot block them.
+A fingerprint miss on any guard or hook must fail the patch.
 
 **Check:**
 - The build produces the bundle and the patch applies with no failed patch (V2 re-run)
-- With the toggle ON, a cold start opens the search page as a guest: no login prompt, no
-  feed markers (V5). The app in the foreground is Reddit before this is asserted
-- Back from search shows the Communities tab with its top bar over an empty page - no
-  Discover feed - and does not crash; its search button opens search again
-- Home is still in the bottom bar (owner amendment); no Home tap is tested yet
-- No `getStartTab failure`, no `onStartTabAttached failure` and no `FATAL EXCEPTION` in logcat
-- Hooks 2-3 are **not** in this step; tapping Home and the rest of V16 wait for S2/S3
+- With the toggle ON, a cold start opens the search page by itself as a guest: no login
+  prompt, no feed (V5)
+- Back until the keyboard is closed and the search page is gone: no feed, no crash; the
+  Communities top bar is present (V7's flow half)
+- Tapping the bar's Home opens search; Back shows the Communities top bar, no feed (V18)
+- Three or more Home taps, closing search between them: search opens each time, and the
+  bare blank Home page never appears after the tap flow; the Communities menu still reaches
+  the Morphe entry (V18)
+- A subreddit search, open, Back returns to search (V6)
+- Home is still in the bottom bar (owner amendment); no check requires a Communities bar slot
+- No patch failure (`getStartTab`, `onStartTabAttached`, `onBottomTabTapped`,
+  `openSearchPage`, `filterSearchZeroState`) and no `FATAL EXCEPTION` in logcat
+- Search zero state's Trending removal and the Inbox toggle wait for S3 (V19, V20)
 
 **If it fails:** stop and report. The v2 note forbids a login, so a guest-mode toggle or
 search failure is a design problem, not something to work around.
 
 ## Stage B - The mechanism, on the device
 
-### S2. Cold start stays on search; tapping Home reaches the empty start screen
+### S2. Tapping Home stays on the empty start screen; the setting OFF behaves stock
 
-**Goal:** with the toggle ON, cold start lands on Reddit's search page, tapping the bar's
-Home button reaches the empty Communities start screen, and every internal go-to-Home lands
-on Communities (hooks 1-3; hook 1 landed in S1). With it OFF, Home, Discover and Popular
-render normally.
+**Goal:** with the toggle ON, hooks 1-3 keep every internal go-to-Home on the Communities
+start screen even if a route re-selects Home without a tap (the tap path is hook 6, proved
+in S1). With it OFF, Home, Discover and Popular render normally.
 **Read:** v1's Hooks table and "Why these sites" (still authoritative); the extension patch;
-`Fingerprints.kt`; the v2 amendment (the Home button stays in the bar).
-**Do:** add hooks 2-3 (`initial_tab` default read, presenter selection funnel) structurally
-per v1's Hooks table. `Home(false)` stays as it is, so the bar keeps its Home button; the
-bar's Home tap reaches the new start screen through hook 3 (owner amendment). Install, cold
-start, exercise the sites. The search launch stays once-per-process and guest-only.
+`Fingerprints.kt`; the third amendment.
+**Do:** hooks 2-3 (`initial_tab` default read, presenter selection funnel) structurally per
+v1's Hooks table. `Home(false)` stays as it is. Install, cold start, exercise the sites.
+The search launch stays once-per-process per attach and guest-only; Home taps open search
+per hook 6.
 
 **Check:**
-- Setting ON, cold start: search page shows, Home feed blank, Home button present, no login
-  prompt (V5 re-run; no feed at any moment)
-- Setting ON, tapping the bar's Home tab: the empty Communities start screen with its search
-  button, no feed (V16's Home route)
+- Setting ON, cold start: search page shows by itself, Home feed blank, Home button
+  present, no login prompt (V5 re-run; no feed at any moment)
+- Setting ON, tapping the bar's Home tab: search opens and the Communities screen sits
+  underneath with its top bar over an empty page (V16's Home route)
 - Setting OFF, cold start: Home, Discover and Popular all render normally (V4, V17)
 - Highlighted-tab behaviour reported per failure mode 4 if the slot is not Communities
 - The extension returns the original tab on failure (V2-style sanity: no crash on hook error)
 
 ### S3. The device gauntlet
 
-**Goal:** every remaining row of v2's Verification table is exercised on the phone.
-**Read:** this plan's coverage table; v2's Verification rows; the step summaries.
+**Goal:** every remaining row of v3's Verification table is exercised on the phone,
+including V12 (a cold external r/<sub> link stays on top with no search page over it), all
+V16 routes with and without a Communities tab, the Inbox toggle (V19) and the Trending
+removal with its before-and-after dump (V20).
+**Read:** this plan's coverage table; the v2 note's Verification rows; the step summaries.
 **Do:** scripted adb runs (`am start`, `uiautomator dump`, `screencap`, `logcat`) for the
-standing v1 rows plus v2's V5, V6, V7, V12, V16 and V17. V16 is the requirement: root,
-Popular, tapping the bar's Home tab, a Communities re-tap, the drawer's Discover/Popular/Latest
-rows and the `REDIRECT_TO_HOME` resume must each show no feed. Anything needing a human finger
-(V11's notification tap, and the owner's eyes on the search zero state) is flagged in the stage
-report rather than skipped.
+standing v1 rows plus v3's V5, V6, V7, V12, V16, V17, V18, V19 and V20. V16 is the
+requirement: root, Popular, tapping the bar's Home tab, a Communities re-tap, the drawer's
+Discover/Popular/Latest rows and the `REDIRECT_TO_HOME` resume must each show no feed -
+each with and without a Communities tab. Anything needing a human finger (V11's
+notification tap) is flagged in the stage report rather than skipped.
 
 **Check:**
 - Every row in the coverage table reported pass/fail with evidence per run
-- V16: no feed visible on any of its routes
+- V16: no feed visible on any of its routes, with and without a Communities tab
 - V17: with the setting OFF, Home, Discover and Popular render normally
+- V19: the Hide Inbox button toggle hides Inbox and UnifiedInbox, restores them when off
+- V20: the search page before typing has no Trending or Trending Communities sections
+  (before-and-after dumps), recent searches kept
 - V9 failing = stop: a Back path to Home was found that the design says not to hook
 - `scripts/checkpoint.sh 3` green
 
@@ -186,6 +213,44 @@ implementer as the next session's first prompt.
 
 ## Changes
 
+- 2026-11-10 - The previously aborted patch run is re-run and **proves** the bundle: all 29
+  patches apply, *Hide navigation buttons* among them, with every hook's read-back
+  verification in place. Two blocks were found and cleared on the way: the zero-state
+  fingerprint had pinned `returnType = "Ljava/lang/Object;"`, which compares as EQUALS against
+  the publisher's real (obfuscated) return type and could never match - the return type is now
+  deliberately unpinned, since the `(List, String, TypeaheadQueryMode)` parameter signature is
+  unique in the class; and the publisher's 28 registers exceed the 4-bit register list of
+  `invoke-static`, so the zero-state injection uses `invoke-static/range { p1 .. p2 }`
+  (and `verifyInjectionAt` now accepts both opcodes). The zero-state hook stands on the
+  repository's terminal publisher - the hydrate site is unusable, the inline smali compiler
+  emits nothing for its five-parameter shape - and the design note's zero-state section is
+  rewritten to match.
+- 2026-11-09 - LOOSENED: plan for V5 **withdrawn**. The owner took the handover's three
+  pending decisions and the design note is amended a third time (the *Third amendment*):
+  cold start opens search by itself via hook 5 (the guarded `HomePagerScreen`'s attach -
+  the blank page is that screen, `BottomNavScreen` builds it directly, so no tab-selection
+  site can decide the first screen; this is deliberate new design work, not a third fix on
+  the old approach), every bottom-bar Home tap opens search via hook 6 (the bottomnav
+  Function0 tap handler, rewritten before any comparison, so the already-selected branch
+  can no longer skip the funnel and land the bare blank Home page), all launches share one
+  debounced helper (~1 s, WeakReference context for the tap path, failures logged), a
+  *Hide Inbox button* toggle drives `Inbox` and `UnifiedInbox`, and the search zero state's
+  Trending sections are removed through the repository's zero-state hydrate funnel
+  (`RedditDynamicTypeaheadAndZeroStateRepository`, read from APK bytecode where jadx
+  failed). S01's check is rewritten for all of it, the coverage table gains V18-V20, and
+  S03 must cover every remaining row incl. V12 and all V16 routes with and without a
+  Communities tab. Hooks 2-3 stay as committed, now checked under S02's run.
+- 2026-11-09 - Stale-build risk closed: device checks always install the freshly patched
+  build with `install -r` (data, toggle and guest state kept), so no check can run against
+  an older build; the `getStartTab` marker-based "already installed" skip is gone.
+- 2026-11-09 - Device facts recorded from the owner's hooks-2-3 phone (not in evidence/):
+  the cold-start blank page is the guarded `HomePagerScreen`; from search the first Back
+  closes the keyboard and the second shows the Communities top bar (`Open community menu`,
+  `search on Reddit`) - the handover's "same blank state" was wrong for this flow; repeated
+  Home taps can land the bare blank Home page via the tap handler's already-selected branch,
+  which skips hook 3; a left swipe on that page does not open the drawer, so the Communities
+  top bar's menu (Morphe entry) is the settings route and must stay reachable; guest search
+  of a subreddit, opening it and Back to search all work.
 - 2026-11-09 - S2's hooks 2-3 (`initial_tab` default read, selection funnel) implemented the
   structural way, with the same index-0/after-sget read-back verification. The cold start
   still does not attach the Communities screen, but tapping the bar's Home button now reaches
