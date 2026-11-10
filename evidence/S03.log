@@ -1,0 +1,90 @@
+# S03 checkpoint run
+# started  2026-11-10T19:37:43Z
+# commit   0e977c13c
+# check    bf2a89e5cf06eb72231ef0c666025233d5448c00
+# ---
+== S03  S3: V7-V16 device gauntlet, V19 Inbox toggle, V20 trending A/B proof
+   Proves: with *Hide feeds* ON as a guest: the top-bar search button works (V7); Back never
+           lands the Home feed (V9: failing here is a STOP); a cold external r/<sub> link
+           stays on top with no search page over it (V12); a root link shows no feed (V13);
+           the toggle coexists with the other hide patches (V8); resume from background shows
+           no feed (V10/REDIRECT variant); rotation leaves no feed (V15); every reachable V16
+           route (root, Home re-tap, Communities re-tap, Popular row) renders no feed, with
+           the server-controlled tab variant recorded; Hide Create + Hide feeds together
+           still leave a usable bar (V14). Then V19 (the Hide Inbox toggle hides and restores
+           the Inbox bar item) and V20 LAST: the search zero state before typing must show NO
+           Trending sections while recent searches stay - this is the filter's ONE device
+           attempt; any failure is reported, never second-sited. V11 needs a human finger
+           (notification tap) and is flagged, not silently skipped.
+   How:    rebuilds, re-patches and ALWAYS installs the freshly patched build with `install -r`
+           (data kept). uiautomator dumps and screencap pixel scores for evidence; the phone's
+           toggles are driven through Morphe settings and verified on the switch itself.
+   Needs:  the phone attached over adb and UNLOCKED; *Hide feeds* already ON as a guest. The
+           guest has searched 'soccer' earlier (S1) so recent searches exist for V20. Guest
+           mode only; subreddit pages opened deliberately are exempt from feed markers.
+
+  [1] ok    gradle buildAndroid succeeds
+  [2] ok    morphe-desktop patches the .apkm clean (re-run every checkpoint)
+  [3] ok    result file: success, no failed patch, hide-nav applied
+  [4] ok    a phone is attached over adb
+  [5] ok    the phone is unlocked by the owner (adb cannot clear its lock screen)
+  [6] ok    the freshly patched build installed with install -r (data and toggle kept)
+  [7] ok    Hide feeds ON at entry (flipped through the stock home's menu when found OFF)
+  [8] FAIL  V7: the top bar's search button works; Back exits search, no feed, no crash
+        ran:      top_bar_search_button
+        exit:     1
+        | expected: the Communities top bar
+        | found:    no top-bar node -
+        | seen:     text="160 MB"
+        | text="Close"
+        | text="Installed"
+        | text="Reddit"
+        | text="Version 2026.45.0"
+        look at:  look at: uiautomator dump
+  [9] ok    V9: Back never reaches the Home feed (a failure here is a STOP)
+  [10] ok    V12: cold external r/<sub> link stays on top, no search page over it
+  [11] ok    V13: cold root deep link shows no feed
+  [12] ok    V8: the patch coexists with the other hide patches (all applied in the same run)
+  [13] ok    V10 (resume variant): backgrounding and resuming shows no feed
+  [14] ok    V15: rotation shows no feed, no crash
+  -- V16 variant record: the Communities bar slot is server-controlled; the bar on this
+      phone reads  - the slot's presence/absence decides
+      which of the re-tap routes below can be driven at all.
+  [15] ok    V16 Home re-tap: search opens, no feed ever
+  [16] ok    V16 Communities re-tap: no feed (or the slot is absent - variant recorded)
+  [17] ok    V16 Popular route: guarded, no feed
+  [18] FAIL  V14: Hide feeds + Hide Create together keep a usable bar (restored after)
+        ran:      v14_toggles_together
+        exit:     1
+        | content-desc="Search Reddit"
+        | content-desc="Send"
+        | text="Ask"
+        | text="Chelsea FC"
+        | text="History"
+        | text="Pawan Kalyan Announces Divorce"
+        | text="Recent"
+        | text="Search Reddit"
+        | text="Trending Communities"
+        | text="Trending"
+        look at:  look at: uiautomator dump
+  [19] ok    V19: Hide Inbox ON hides both bar Inboxes, OFF restores them
+  [20] FAIL  V20: the pre-typing search page has no Trending sections; recent searches stay
+        ran:      v20_trending_removal
+        exit:     1
+        | content-desc="Send"
+        | text="Ask"
+        | text="Chelsea FC"
+        | text="History"
+        | text="Pawan Kalyan Announces Divorce"
+        | text="Recent"
+        | text="Search Reddit"
+        | text="Trending Communities"
+        | text="Trending"
+        |   -- evidence: evidence/S03-search-zero-state-after.png (may be missing if the pull failed)
+        look at:  look at: uiautomator dump, evidence/S03-search-zero-state-after.png
+  -- V11 (notification post -> Back) needs a human finger if adb cannot tap the
+      notification - flagged for the stage report, covered nowhere else in this run.
+  [21] ok    no hook failure and no crash over the whole run
+
+FAIL: S03 - 3 of 21 checks failed
+# exit     1

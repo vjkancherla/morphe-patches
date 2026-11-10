@@ -213,6 +213,16 @@ implementer as the next session's first prompt.
 
 ## Changes
 
+- 2026-11-10 - S2 is green on the phone (S02, 13/13): the OFF setting is stock (the switch
+  is driven through Morphe settings and verified on the switch itself; the stock feed is
+  judged by the screen's pixel diversity because this build's guest screens carry no vote/
+  share a11y labels), the ON landing stands (cold start search, Home-tap flow to the top
+  bar), and the toggle round-trips. `docs/steps/S02.md` and the stage-A report are in, and
+  the independent review is due over the day's range. S03's script and evidence are
+  committed with them: the gauntlet is green except V7 (a ColorOS install sheet blocks the
+  flow - pending a dismissal fix), V14 (a navigation gap), and V20, whose one permitted
+  attempt FAILED - the zero state still shows Trending sections, stop-and-report per the
+  owner's brief, no second site.
 - 2026-11-10 - S1 is green on the phone (S01 rewritten to the owner's spec, 18/18): cold
   start opens search by itself (hook 5 proved on device), Back out of it shows no feed and
   no crash, three Home taps in a row each open search and the bare blank Home page never
