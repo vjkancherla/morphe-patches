@@ -1,7 +1,7 @@
 # S03 checkpoint run
-# started  2026-11-10T19:37:43Z
-# commit   0e977c13c
-# check    bf2a89e5cf06eb72231ef0c666025233d5448c00
+# started  2026-11-10T20:53:05Z
+# commit   0ba5d79a2
+# check    56ea70ae19902401437a8f3936413bbca7ab9292
 # ---
 == S03  S3: V7-V16 device gauntlet, V19 Inbox toggle, V20 trending A/B proof
    Proves: with *Hide feeds* ON as a guest: the top-bar search button works (V7); Back never
@@ -30,17 +30,7 @@
   [5] ok    the phone is unlocked by the owner (adb cannot clear its lock screen)
   [6] ok    the freshly patched build installed with install -r (data and toggle kept)
   [7] ok    Hide feeds ON at entry (flipped through the stock home's menu when found OFF)
-  [8] FAIL  V7: the top bar's search button works; Back exits search, no feed, no crash
-        ran:      top_bar_search_button
-        exit:     1
-        | expected: the Communities top bar
-        | found:    no top-bar node -
-        | seen:     text="160 MB"
-        | text="Close"
-        | text="Installed"
-        | text="Reddit"
-        | text="Version 2026.45.0"
-        look at:  look at: uiautomator dump
+  [8] ok    V7: the top bar's search button works; Back exits search, no feed, no crash
   [9] ok    V9: Back never reaches the Home feed (a failure here is a STOP)
   [10] ok    V12: cold external r/<sub> link stays on top, no search page over it
   [11] ok    V13: cold root deep link shows no feed
@@ -53,38 +43,4 @@
   [15] ok    V16 Home re-tap: search opens, no feed ever
   [16] ok    V16 Communities re-tap: no feed (or the slot is absent - variant recorded)
   [17] ok    V16 Popular route: guarded, no feed
-  [18] FAIL  V14: Hide feeds + Hide Create together keep a usable bar (restored after)
-        ran:      v14_toggles_together
-        exit:     1
-        | content-desc="Search Reddit"
-        | content-desc="Send"
-        | text="Ask"
-        | text="Chelsea FC"
-        | text="History"
-        | text="Pawan Kalyan Announces Divorce"
-        | text="Recent"
-        | text="Search Reddit"
-        | text="Trending Communities"
-        | text="Trending"
-        look at:  look at: uiautomator dump
-  [19] ok    V19: Hide Inbox ON hides both bar Inboxes, OFF restores them
-  [20] FAIL  V20: the pre-typing search page has no Trending sections; recent searches stay
-        ran:      v20_trending_removal
-        exit:     1
-        | content-desc="Send"
-        | text="Ask"
-        | text="Chelsea FC"
-        | text="History"
-        | text="Pawan Kalyan Announces Divorce"
-        | text="Recent"
-        | text="Search Reddit"
-        | text="Trending Communities"
-        | text="Trending"
-        |   -- evidence: evidence/S03-search-zero-state-after.png (may be missing if the pull failed)
-        look at:  look at: uiautomator dump, evidence/S03-search-zero-state-after.png
-  -- V11 (notification post -> Back) needs a human finger if adb cannot tap the
-      notification - flagged for the stage report, covered nowhere else in this run.
-  [21] ok    no hook failure and no crash over the whole run
-
-FAIL: S03 - 3 of 21 checks failed
-# exit     1
+  [18] ok    V14: Hide feeds + Hide Create together keep a usable bar (restored after)

@@ -139,32 +139,63 @@ reddit_in_front() {
   return 0
 }
 
+# Resume the app into the foreground without a force-stop (the app keeps its state);
+# used when an overlay dismissal or the outside world left the launcher in front.
+bring_reddit_front() {
+  activity="$($ADB shell cmd package resolve-activity --brief "$PACKAGE" 2>/dev/null | tail -1 | tr -d '\r')"
+  [ -n "$activity" ] || activity="$PACKAGE/launcher.default"
+  $ADB shell am start -n "$activity" >/dev/null 2>&1
+  for attempt in $(seq 1 15); do
+    $ADB shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus=.*$PACKAGE" && return 0
+    sleep 1
+  done
+  focus="$($ADB shell dumpsys window 2>/dev/null | grep -m1 mCurrentFocus | tr -d '\r')"
+  echo "expected: Reddit in the foreground after the resume"
+  echo "found:    the front window is: $focus"
+  return 1
+}
+
 # ColorOS sometimes parks the app-details sheet ("Installed / Version ... / Close") over
-# the front window right after an install - dismiss it before any flow.
+# the front window right after an install - dismiss it before any flow. Tap Close, re-dump
+# and require the sheet's texts gone; if it is still up, press BACK, re-dump and require
+# it gone again. A sheet that survives both is a harness error, never a result. The BACK
+# fallback can exit the app instead of the sheet, so Reddit is brought back to the front
+# before any state is read (a dump of anything not Reddit is an error, never a result).
 dismiss_overlays() {
   for attempt in 1 2 3; do
     dump="$(ui_text)"
+    if ! printf '%s' "$dump" | grep -q 'text="Installed"' || ! printf '%s' "$dump" | grep -q 'text="Close"'; then
+      return 0
+    fi
+    $ADB shell input tap $(node_center "$dump" "Close") 2>/dev/null || true
+    sleep 2
+    dump="$(ui_text)"
+    if ! printf '%s' "$dump" | grep -q 'text="Installed"' || ! printf '%s' "$dump" | grep -q 'text="Close"'; then
+      return 0
+    fi
+    $ADB shell input keyevent KEYCODE_BACK >/dev/null 2>&1
+    sleep 2
+    dump="$(ui_text)"
     if printf '%s' "$dump" | grep -q 'text="Installed"' && printf '%s' "$dump" | grep -q 'text="Close"'; then
-      $ADB shell input tap $(node_center "$dump" "Close") 2>/dev/null || $ADB shell input keyevent KEYCODE_BACK >/dev/null 2>&1
-      sleep 2
       continue
     fi
+    reddit_in_front >/dev/null || bring_reddit_front || return 1
     return 0
   done
+  front="$($ADB shell dumpsys window 2>/dev/null | grep -m1 mCurrentFocus | tr -d '\r')"
+  echo "expected: the ColorOS install sheet dismissed (tap Close, then BACK)"
+  echo "found:    the sheet still parked over the front window after three rounds"
+  echo "front:    $front"
+  echo "seen:     $(dump_texts "$dump")"
+  return 1
 }
 
 cold_start() {
   $ADB shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1
   $ADB shell am force-stop "$PACKAGE" >/dev/null 2>&1
   sleep 1
-  activity="$($ADB shell cmd package resolve-activity --brief "$PACKAGE" 2>/dev/null | tail -1 | tr -d '\r')"
-  [ -n "$activity" ] || activity="$PACKAGE/launcher.default"
-  $ADB shell am start -n "$activity" >/dev/null 2>&1
-  for attempt in $(seq 1 20); do
-    $ADB shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus=.*$PACKAGE" && break
-    sleep 1
-  done
-  dismiss_overlays
+  bring_reddit_front || return 1
+  dismiss_overlays || return 1
   sleep 3
 }
 
@@ -252,7 +283,11 @@ for node in xml.split('<node ')[1:]:
 # The Morphe settings entry from the stock home (its own hamburger holds Morphe) or from
 # the Communities top bar's menu when the feature's states are showing.
 open_morphe_entry() {
-  close_search_with_back
+  if ! close_search_with_back; then
+    echo "expected: the search page closes so the Morphe entry can be reached"
+    echo "found:    the search page stayed up through three rounds of Back"
+    return 1
+  fi
   dump="$(ui_text_retried)"
   require_oops="$(reddit_in_front)" || { echo "$require_oops"; return 1; }
   tap_node "$dump" "Open community menu"
@@ -488,6 +523,11 @@ require "Hide feeds ON at entry (flipped through the stock home's menu when foun
 # 1) V7: the top bar's search button and Back exit -------------------------------------
 
 top_bar_search_button() {
+  # The ColorOS app-details sheet can pop up AFTER the install-time dismissal window
+  # (between the entry check and this one) - clear it before any state is read; a dump
+  # of anything not Reddit is an error, never a result.
+  dismiss_overlays || return 1
+  reddit_in_front >/dev/null || bring_reddit_front || return 1
   # Reach the top-bar state: close search; if no top bar, use a Home tap flow.
   close_search_with_back
   dump="$(ui_text_retried)"
@@ -508,7 +548,17 @@ top_bar_search_button() {
     echo "seen:     $(dump_texts "$dump")"
     return 1
   fi
-  tap_node "$dump" "Search"
+  # This build's top bar carries the search pill as content-desc="search on Reddit"
+  # (no plain "Search" node) - tap whichever of the two exists, never silently neither.
+  coords="$(node_center "$dump" "search on Reddit")"
+  [ -n "$coords" ] || coords="$(node_center "$dump" "Search")"
+  if [ -z "$coords" ]; then
+    echo "expected: the top bar's search button to tap (V7)"
+    echo "found:    no search node in the bar -"
+    echo "seen:     $(dump_texts "$dump")"
+    return 1
+  fi
+  $ADB shell input tap $coords
   sleep 4
   after="$(ui_text_retried)"
   require_oops="$(reddit_in_front)" || { echo "$require_oops"; return 1; }
@@ -794,14 +844,22 @@ v14_toggles_together() {
   close_search_with_back
   cold_start
   require_oops="$(reddit_in_front)" || { echo "$require_oops"; return 1; }
-  dump="$(ui_text_retried)"
+  # Establish the state chain afresh: the cold start opens the search page, polled, not
+  # assumed - the Create-removal assertion reads only the bar dump of this chain.
+  dump="$(wait_for_ui 'Search Reddit' 20)"
+  require_oops="$(reddit_in_front)" || { echo "$require_oops"; return 1; }
   if ! is_search_page "$dump"; then
     echo "expected: with both toggles ON, the cold start still opens search (V14)"
-    echo "found:    no search page -"
+    echo "found:    no search page within the poll -"
     echo "seen:     $(dump_texts "$dump")"
     return 1
   fi
-  close_search_with_back
+  if ! close_search_with_back; then
+    echo "expected: Back closes the search page before the bar dump (V14)"
+    echo "found:    the search page stayed up through three rounds of Back"
+    echo "seen:     $(dump_texts "$(ui_text_retried)")"
+    return 1
+  fi
   dump="$(wait_for_ui '(text|content-desc)="Home"' 12)"
   if printf '%s' "$dump" | grep -Eq '(text|content-desc)="Create"'; then
     echo "expected: with the Hide Create toggle ON the bar holds no Create item (V14)"
@@ -811,8 +869,9 @@ v14_toggles_together() {
   fi
   if ! printf '%s' "$dump" | grep -Eq '(text|content-desc)="Home"'; then
     echo "expected: Home remains in the bar (owner amendment)"
-    echo "found:    no Home node -"
+    echo "found:    no Home node in the dump after closing search -"
     echo "bar:      $(bar_summary "$dump")"
+    echo "seen:     $(dump_texts "$dump")"
     return 1
   fi
   echo "V14: both toggles ON - search still lands, bar is Home/Create-less (+You, Inbox if shown)"

@@ -50,7 +50,7 @@ Rows marked (v2) are the v2 note's redefinitions; all other rows are v1's, still
 | V17 (v3) setting OFF renders Home/Discover/Popular normally | S02 device test |
 | V18 (v3) every Home tap opens search, bare blank Home never after a tap flow; Communities top bar and its Morphe menu stay reachable | S01 device |
 | V19 (v3) Hide Inbox button toggle drives Inbox + UnifiedInbox | S03 device run |
-| V20 (v3) search zero state has no Trending sections; recent searches stay | S03 device run (before-and-after dump) |
+| V20 (v3) search zero state has no Trending sections; recent searches stay | S03 device run (before-and-after dump) — the ONE attempt FAILED on device; owner accepted as shipped, 2026-11-10 (option a); row stays red with the reason |
 
 **The device gate.** S01 onward need a phone. Each device step starts by polling
 `adb devices` (Android SDK at `../android-sdk`, `platform-tools/adb`); when it is empty the
@@ -213,6 +213,13 @@ implementer as the next session's first prompt.
 
 ## Changes
 
+- 2026-11-10 - The owner called V20: **option (a), accept as shipped.** The zero-state
+  filter's ONE permitted device attempt failed (the pre-typing search page still renders
+  Trending / Trending Communities / the trending shelf; `evidence/S03.log` check [20] and
+  `evidence/S03-search-zero-state-after.png`). The hook site is the repository's terminal
+  publisher, verified matched, injected and read-back verified, so the row stays red with
+  this decision recorded - no second site, no re-attempt, nothing loosened. V20 is the
+  only red row going into the final gate's covered/deferred table.
 - 2026-11-10 - S2 is green on the phone (S02, 13/13): the OFF setting is stock (the switch
   is driven through Morphe settings and verified on the switch itself; the stock feed is
   judged by the screen's pixel diversity because this build's guest screens carry no vote/
