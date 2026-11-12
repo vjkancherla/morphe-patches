@@ -1,6 +1,6 @@
 # S03 checkpoint run
-# started  2026-11-10T20:53:05Z
-# commit   0ba5d79a2
+# started  2026-11-12T10:51:59Z
+# commit   7594a993a
 # check    56ea70ae19902401437a8f3936413bbca7ab9292
 # ---
 == S03  S3: V7-V16 device gauntlet, V19 Inbox toggle, V20 trending A/B proof
@@ -44,3 +44,24 @@
   [16] ok    V16 Communities re-tap: no feed (or the slot is absent - variant recorded)
   [17] ok    V16 Popular route: guarded, no feed
   [18] ok    V14: Hide feeds + Hide Create together keep a usable bar (restored after)
+  [19] ok    V19: Hide Inbox ON hides both bar Inboxes, OFF restores them
+  [20] FAIL  V20: the pre-typing search page has no Trending sections; recent searches stay
+        ran:      v20_trending_removal
+        exit:     1
+        | content-desc="Send"
+        | text="Ask"
+        | text="History"
+        | text="Qualcomm Layoffs Reach India"
+        | text="Recent"
+        | text="Search Reddit"
+        | text="Trending Communities"
+        | text="Trending"
+        | text="r/AskIndianWomen"
+        |   -- evidence: evidence/S03-search-zero-state-after.png (may be missing if the pull failed)
+        look at:  look at: uiautomator dump, evidence/S03-search-zero-state-after.png
+  -- V11 (notification post -> Back) needs a human finger if adb cannot tap the
+      notification - flagged for the stage report, covered nowhere else in this run.
+  [21] ok    no hook failure and no crash over the whole run
+
+FAIL: S03 - 1 of 21 checks failed
+# exit     1
