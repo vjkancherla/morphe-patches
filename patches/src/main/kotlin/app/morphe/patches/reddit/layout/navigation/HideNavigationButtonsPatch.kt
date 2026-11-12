@@ -291,25 +291,6 @@ val hideNavigationButtonsPatch = patch(
             verifyInjectionAt(0, EXTENSION_CLASS, "filterSearchZeroState")
         }
 
-        // Hook 7: the welcome flow's launch-time credential query. The system credential
-        // providers (Google / Bitwarden) answer it with a chooser sheet that parks over
-        // the app on every cold start, and this fork has no sign-in surface at all, so the
-        // query is skipped unconditionally - not gated on the toggle, because the query is
-        // the app asking for sign-in options, which this fork never offers. Ending the
-        // coroutine at its entry with the completed value leaves the rest of the welcome
-        // flow untouched.
-        WelcomeCredentialQueryFingerprint.method.apply {
-            addInstructions(
-                0,
-                """
-                    invoke-static {}, $EXTENSION_CLASS->skipWelcomeCredentialQuery()Ljava/lang/Object;
-                    move-result-object v0
-                    return-object v0
-                """
-            )
-            verifyInjectionAt(0, EXTENSION_CLASS, "skipWelcomeCredentialQuery")
-        }
-
         // endregion
 
         setExtensionIsPatchIncluded(EXTENSION_CLASS)
