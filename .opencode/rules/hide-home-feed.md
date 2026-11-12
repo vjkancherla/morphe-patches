@@ -145,12 +145,82 @@ For a human who will not read the code. One screen, no code.
 - **Doing the step properly would contradict the design's load-bearing decision.**
 - **The step needs something outside your scope.**
 - **A device step finds no phone attached.** See Device gate.
+- **A consult trigger fires.** See Consulting Claude.
 
 When you stop, say in a few lines what you saw, what you tried, and what you would do next.
 If another step in the stage does not depend on the blocked one, do that one and say so.
 
 Anything short of those is not a reason to stop. If the plan or the design answers the
 question, do not ask it.
+
+## Consulting Claude (owner-triggered only)
+
+Claude's usage is limited and reserved for decisions. Never run `claude`, or any other Claude
+command, yourself. Write the consult file, stop, and tell the owner. Only the owner starts a
+consult.
+
+### Write a consult when
+
+- a decision note or design change is needed, before writing its code
+- a second fix attempt on the same problem has failed
+- the next step depends on a claim about Reddit's behaviour that you could not check against
+  the decompiled code or the phone
+- a stop condition fired and the way forward is not obvious
+
+Do not consult for build errors, fingerprint tuning, routine checks, or anything the design
+already answers. Have only one consult open at a time.
+
+### Before you write it
+
+Do this work first. Claude should not have to gather what you can gather.
+
+1. Try to disprove your own diagnosis, and record what you tried.
+2. Mark every statement as OBSERVED or INFERRED. OBSERVED must cite a log line, screenshot,
+   dump or `file:line`.
+3. Confirm each piece of evidence came from the current build and shows the intended screen.
+4. For each option, state what it breaks one step later.
+5. Look for an option the current notes do not list.
+
+### File
+
+Write `docs/consults/NNN-short-name.md`, one page at most, with exactly these sections:
+
+    # Consult NNN: <the question, in one sentence>
+
+    Build: <commit> · Trigger: <which rule above>
+
+    ## Question
+    <the single decision needed>
+
+    ## Observed
+    <facts, each with its evidence path or file:line>
+
+    ## Inferred
+    <your theory, and what would prove it wrong>
+
+    ## Tried
+    <what you tried, and the result>
+
+    ## Options
+    <each option: what it does, its cost, what it breaks one step later>
+
+    ## Recommendation
+    <your pick and why>
+
+    ## Files Claude should read
+    <at most five paths, with line ranges where possible>
+
+Commit the file, tell the owner its path, and stop work that depends on the answer. Continue
+any independent work.
+
+### After the answer
+
+Claude's reply is `docs/consults/NNN-short-name-answer.md`. Follow it unless the evidence has
+changed. If it has, write a new consult. Do not argue with the answer in code. Record the
+outcome in the plan's Changes log.
+
+A consult answer does not replace the stage-end review, and Claude's advice is a claim to be
+tested on the device like any other.
 
 ## The plan is a map
 

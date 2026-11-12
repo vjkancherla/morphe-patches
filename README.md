@@ -26,6 +26,47 @@
 # 🧩 Patches
 Morphe Patches
 
+---
+
+## This fork - Hide feeds for Reddit
+
+> **Personal fork, not an upstream contribution.** It adds a *Hide feeds* mode to Reddit
+> 2026.45.0 for one use case: open the app, land on search, read the subreddits you choose
+> as a guest, and never render a feed. Verified only against Reddit 2026.45.0.
+
+**What it adds**
+
+- **Hide feeds** (`Morphe -> Navigation bar`): all five feed screens are guarded at their
+  render method, so no route can draw Home, Discover, Popular, Latest or News.
+- **No login**: guest mode throughout; the *Start as guest* patch skips the login wall.
+- **Cold start lands on search**: the guarded Home screen opens Reddit's own search page
+  by itself.
+- **Every Home tap opens search**: the bottom-bar Home button opens search each time and
+  lands on the empty Communities screen, keeping the top-bar menu (and Morphe settings)
+  reachable.
+- **Hide Inbox button** (optional, default off): hides both `Inbox` and `UnifiedInbox`.
+- **No sign-in prompts**: Reddit never asks Android for saved logins (no Google
+  "Sign-in options" sheet), and a guest cold start never routes to the welcome /
+  sign-up screen.
+- **Known limitation**: the pre-typing search page still shows *Trending* and *Trending
+  Communities*. The filter was attempted once and accepted as shipped (V20); it is
+  documented in the handbook.
+
+**Docs**
+
+- [Project handbook](docs/PROJECT-HANDBOOK.md) - status, design, hooks, commands, open issues
+- [Reinstall on the phone](docs/REINSTALL-REDDIT.md) - recovery after deleting the app
+- [Handover](HANDOVER.md) - the last working session's state
+- [Build plan and Changes log](docs/build-plan.md)
+- [Design note v2](docs/design/hide-home-feed-v2.md)
+
+**Status:** feature branch `feat/hide-home-feed`, delivered 2026-11-12. The build and patch
+pipeline are green; device checks S0 6/6, S1 18/18, S2 13/13, S3 20/21 (V20 accepted as
+shipped); final gate S04 PASS 8/8. See `docs/PROJECT-HANDBOOK.md`.
+The rest of this README is the upstream Morphe documentation.
+
+---
+
 ## ❓ About
 
 Morphe Patches are based off the prior work of [ReVanced](https://github.com/ReVanced).
