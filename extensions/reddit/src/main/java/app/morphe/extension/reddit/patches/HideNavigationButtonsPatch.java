@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.Nullable;
@@ -224,6 +225,16 @@ public final class HideNavigationButtonsPatch {
         } catch (Throwable ex) {
             Logger.printException(() -> "filterSearchZeroState failure", ex);
         }
+    }
+
+    /**
+     * Injection point (credential-request tripwires, log only). No behavior change: it
+     * records who asks the system credential providers for credentials, under the
+     * MorpheCred tag with the full stack, so the requesting path is nameable in logcat
+     * if the credential chooser sheet ever returns.
+     */
+    public static void logCredentialRequest() {
+        Log.w("MorpheCred", "credential request", new Throwable());
     }
 
     private static boolean isTrendingShelf(@Nullable Object shelf) {

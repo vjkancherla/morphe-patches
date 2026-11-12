@@ -291,6 +291,29 @@ val hideNavigationButtonsPatch = patch(
             verifyInjectionAt(0, EXTENSION_CLASS, "filterSearchZeroState")
         }
 
+        // Credential-request tripwires: LOG ONLY, no behavior change. The credential
+        // chooser sheet that stormed the app is raised by the system credential providers
+        // answering the app's own credential requests, and the requesting path was never
+        // pinned (hook 7 skipped one of several call sites and did not stop the sheet).
+        // These two hooks make every ask log its stack under the MorpheCred tag, so if
+        // the sheet ever returns, logcat names the requesting path - which decides where
+        // a behavior-changing hook, if ever needed, must sit. Both targets are found
+        // structurally (see the fingerprints), never by obfuscated class name.
+        CredentialsDataSourceLogTripwireFingerprint.method.apply {
+            addInstructions(
+                0,
+                "invoke-static {}, $EXTENSION_CLASS->logCredentialRequest()V"
+            )
+            verifyInjectionAt(0, EXTENSION_CLASS, "logCredentialRequest")
+        }
+        AutoLoginResolveCredentialsLogTripwireFingerprint.method.apply {
+            addInstructions(
+                0,
+                "invoke-static {}, $EXTENSION_CLASS->logCredentialRequest()V"
+            )
+            verifyInjectionAt(0, EXTENSION_CLASS, "logCredentialRequest")
+        }
+
         // endregion
 
         setExtensionIsPatchIncluded(EXTENSION_CLASS)

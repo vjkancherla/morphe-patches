@@ -256,3 +256,63 @@ internal object SearchZeroStateFilterFingerprint : Fingerprint(
         "Lcom/reddit/search/domain/model/TypeaheadQueryMode;"
     )
 )
+
+/**
+ * The credentials datasource's R8-moved coroutine body (the
+ * `RedditCredentialsDataSource` fetch in 2026.45.0; the class and the method are both
+ * obfuscated, so neither is hard-coded). Pinned structurally instead: the suspend-lambda
+ * dispatch shape (public final, `(Activity, List, Z, ContinuationImpl) -> Object`) plus
+ * the three datasource-unique log/tag strings, which the bytecode carries verbatim.
+ * Verified unique against the 2026.45.0 APK (exactly one method in the whole app matches).
+ *
+ * This method is what every sign-in-questions flow asks the system credential providers
+ * with. The hook on it is LOG ONLY: it records who asks for credentials, so if the
+ * credential chooser sheet ever returns, its stack names the requesting path.
+ */
+internal object CredentialsDataSourceLogTripwireFingerprint : Fingerprint(
+    returnType = "Ljava/lang/Object;",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    parameters = listOf(
+        "Landroid/app/Activity;",
+        "Ljava/util/List;",
+        "Z",
+        "Lkotlin/coroutines/jvm/internal/ContinuationImpl;"
+    ),
+    strings = listOf(
+        "credentials_manager_data_source",
+        "androidx.credentials.BUNDLE_KEY_ALLOWED_USER_IDS",
+        "android.credentials.TYPE_PASSWORD_CREDENTIAL"
+    )
+)
+
+/**
+ * The auto-login use case's resolve method (`RedditAutoLoginUseCase` in 2026.45.0; the
+ * class and the method are both obfuscated, so neither is hard-coded). Pinned
+ * structurally: the suspend-lambda dispatch shape (public final,
+ * `(String, ?, Z, Z, String, ?, ContinuationImpl) -> Object`) plus its four
+ * error-source tag strings, which the bytecode carries verbatim. Verified unique against
+ * the 2026.45.0 APK (exactly one method in the whole app matches).
+ *
+ * This runs at every app launch (auto-login / saved-account restore) and asks the
+ * credential providers to resolve saved accounts. LOG ONLY: same tripwire purpose as
+ * the datasource hook above.
+ */
+internal object AutoLoginResolveCredentialsLogTripwireFingerprint : Fingerprint(
+    returnType = "Ljava/lang/Object;",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    parameters = listOf(
+        "Ljava/lang/String;",
+        "L",
+        "Z",
+        "Z",
+        "Ljava/lang/String;",
+        "L",
+        "Lkotlin/coroutines/jvm/internal/ContinuationImpl;"
+    ),
+    strings = listOf(
+        "AutoLogin",
+        "invalid_account_data",
+        "username_retrieval_error",
+        "username_unavailable"
+    )
+)
