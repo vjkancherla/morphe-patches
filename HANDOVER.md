@@ -1,5 +1,32 @@
 # HANDOVER - Hide Home Feed, full speed to delivery
 
+## Session close 2026-11-12 - the credential storm, found and fixed
+
+The **credential storm** (a Google credential-chooser sheet parking over every Reddit
+launch) was root-caused and fixed this session. Nothing in the product code had changed;
+tripwire stacks pinned both launch-time credential asks to `RedditCredentialsDataSource`'s
+R8-moved body (found structurally), and a fresh install STILL fired the sheet - the wedged
+state is Google-side, keyed to the package identity and this fork's signing key (the
+owner's separately signed 2026.40.0 phone build never stormed). Fixes, both committed:
+
+- **4a** (25f758fb1): the datasource returns the flow's own no-credential result at
+  entry - references read off the method's own bytecode, no obfuscated names; log
+  tripwires (`MorpheCred`) stay. Hook 7 was reverted first (it hard-coded R8 field `a`).
+- **4b** (f61021043, owner-approved: the fork has no sign-in surface): Reddit's
+  forced-login gate returns false, so a fresh install no longer cold-starts into the
+  welcome/login flow (`IntroductionActivity`) - which had made the settings flow
+  unreachable on both Hide-feeds states.
+- Verified: 20/20 scripted cold starts land on search, no sheet, no welcome screen;
+  raw `checkpoint.sh all` = S00 6/6, S01 18/18, S02 13/13, S03 20/21 (V20 red-accepted,
+  same signature); **S04 final gate PASS 8/8** (evidence/S04.log) - the only place the
+  V20 exception applies; raw verdict stays FAIL by design.
+- **V11 is manual** (not one of S03's 21 checks): sign-off place is
+  `scripts/checks/S04-v11-signoff.txt` - PENDING the owner's sign-off.
+- Reinstalling: follow `docs/REINSTALL-REDDIT.md`. Two device truths recorded there and
+  below: **Android backup restores Reddit's settings on reinstall** (a fresh install came
+  up with the toggles ON before any tap), and the signing key matters to Google's
+  per-app credential state.
+
 Rewritten 2026-11-10 late-night, session close at the owner's word. The owner took the
 open V20 call this session (**option (a), accept as shipped**), the V7/V14 harness fixes
 landed and proved green on device, and the session was cut during the final clean run's
@@ -67,6 +94,15 @@ covered/deferred table.
 
 ## What remains for delivery
 
+DELIVERED 2026-11-12: the clean runs exist, the final gate is written and green
+(`scripts/checkpoint.sh 4` -> S04 PASS 8/8, evidence/S04.log; raw `all` = S00 6/6,
+S01 18/18, S02 13/13, S03 20/21 with V20 red-accepted; the stage-C hand-off report is
+`docs/stages/C.md`). What remains is the owner's V11 sign-off
+(`scripts/checks/S04-v11-signoff.txt`), the still-deferred stage reviews, and the
+owner-owned housekeeping below.
+
+Superseded context (pre-delivery, kept for the record):
+
 - ONE clean full re-run: `scripts/checkpoint.sh 3` - expect everything green except V20
   (red by owner decision, unchanged, do not loosen, do not remove). Its complete
   evidence log with the PASS-verdict-minus-V20 is what the stage report cites.
@@ -95,6 +131,14 @@ covered/deferred table.
    subject to the owner's word on the red-accepted V20 row.
 
 ## Facts not to re-derive
+
+- **Android backup restores Reddit's settings on reinstall (measured 2026-11-12):** a
+  fresh install of `com.reddit.frontpage` came up with the Morphe toggles already ON
+  before anything was tapped - Android's device backup/restore carried the old install's
+  `com.reddit.frontpage_preferences` (the Morphe extension's prefs live there) across the
+  uninstall. Defaults are FALSE (`Settings.java`), so an ON state without a tap is the
+  restore, not the defaults. Never conclude a toggle state from "it's a fresh install" -
+  read the switch or verify behaviorally.
 
 - Toolchain: `source ~/.zshrc` gives JDK 21 + ANDROID_HOME; project root only for
   checkpoint invocations; patch command
