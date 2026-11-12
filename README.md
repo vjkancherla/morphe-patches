@@ -49,20 +49,14 @@ Morphe Patches
   "Sign-in options" sheet), and a guest cold start never routes to the welcome /
   sign-up screen.
 - **Known limitation**: the pre-typing search page still shows *Trending* and *Trending
-  Communities*. The filter was attempted once and accepted as shipped (V20); it is
-  documented in the handbook.
+  Communities*. The filter was attempted once and accepted as shipped.
 
-**Docs**
+**Build:** `./gradlew buildAndroid`, then apply the bundle to the Reddit 2026.45.0 `.apkm`
+with Morphe (desktop or the Android app), install, and turn on
+*Morphe -> Navigation bar -> Hide feeds*.
 
-- [Project handbook](docs/PROJECT-HANDBOOK.md) - status, design, hooks, commands, open issues
-- [Reinstall on the phone](docs/REINSTALL-REDDIT.md) - recovery after deleting the app
-- [Handover](HANDOVER.md) - the last working session's state
-- [Build plan and Changes log](docs/build-plan.md)
-- [Design note v2](docs/design/hide-home-feed-v2.md)
-
-**Status:** feature branch `feat/hide-home-feed`, delivered 2026-11-12. The build and patch
-pipeline are green; device checks S0 6/6, S1 18/18, S2 13/13, S3 20/21 (V20 accepted as
-shipped); final gate S04 PASS 8/8. See `docs/PROJECT-HANDBOOK.md`.
+**Status:** delivered 2026-11-12. The planning docs, device checks and evidence were removed
+after delivery; they remain in git history at commit `8876ce276`.
 The rest of this README is the upstream Morphe documentation.
 
 ---

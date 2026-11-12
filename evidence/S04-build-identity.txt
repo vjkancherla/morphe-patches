@@ -1,4 +1,0 @@
-mode: fresh-run
-date: 2026-11-12T17:44:42+0000
-commit: f610210430af8dd6879cb169e8da79ebc4d2e2a3
-patched-apk-sha256: 678a3fd0dcbb54e4896095c103bc7167de5ec33e227994978cb95cbe5480e74a
