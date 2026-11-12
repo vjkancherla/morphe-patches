@@ -237,6 +237,15 @@ public final class HideNavigationButtonsPatch {
         Log.w("MorpheCred", "credential request", new Throwable());
     }
 
+    /**
+     * Injection point (credential-request suppression, second of the pair). Runs right
+     * before the patch returns the flow's own no-credential result at the datasource's
+     * entry, so logcat counts how many asks were suppressed per launch. Log only.
+     */
+    public static void logCredentialRequestSuppressed() {
+        Log.w("MorpheCred", "credential request suppressed", new Throwable());
+    }
+
     private static boolean isTrendingShelf(@Nullable Object shelf) {
         if (shelf == null) {
             return false;

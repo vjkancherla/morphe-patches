@@ -31,7 +31,9 @@ import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
+import com.android.tools.smali.dexlib2.iface.reference.TypeReference
 import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
 
 private const val EXTENSION_CLASS =
@@ -291,20 +293,100 @@ val hideNavigationButtonsPatch = patch(
             verifyInjectionAt(0, EXTENSION_CLASS, "filterSearchZeroState")
         }
 
-        // Credential-request tripwires: LOG ONLY, no behavior change. The credential
-        // chooser sheet that stormed the app is raised by the system credential providers
-        // answering the app's own credential requests, and the requesting path was never
-        // pinned (hook 7 skipped one of several call sites and did not stop the sheet).
-        // These two hooks make every ask log its stack under the MorpheCred tag, so if
-        // the sheet ever returns, logcat names the requesting path - which decides where
-        // a behavior-changing hook, if ever needed, must sit. Both targets are found
-        // structurally (see the fingerprints), never by obfuscated class name.
+        // Credential-request suppression + tripwire: the credential chooser sheet is raised
+        // by the system credential providers answering the app's own getCredentials asks.
+        // The tripwire stacks proved both launch-time asks go through the datasource's
+        // R8-moved body, and a fresh install did not stop the sheet, so the wedged state is
+        // Google-side and the only durable product fix is to never ask. The ask is now
+        // short-circuited at the datasource's entry with the flow's OWN no-credential
+        // result - the same sealed wrapper the method's NoCredentialException branch builds
+        // and returns - so callers receive an outcome they already handle. The three
+        // references are read off the method's own instructions at patch time; the anchor is
+        // androidx's NON-obfuscated NoCredentialException type-check. No obfuscated name is
+        // hard-coded, and any missing piece fails the patch.
         CredentialsDataSourceLogTripwireFingerprint.method.apply {
             addInstructions(
                 0,
                 "invoke-static {}, $EXTENSION_CLASS->logCredentialRequest()V"
             )
             verifyInjectionAt(0, EXTENSION_CLASS, "logCredentialRequest")
+
+            val instructions = requireNotNull(implementation).instructions
+            val anchorIndex = instructions.indexOfFirst { instruction ->
+                instruction.opcode == Opcode.INSTANCE_OF &&
+                    instruction is ReferenceInstruction &&
+                    (instruction.reference as TypeReference).type ==
+                        "Landroidx/credentials/exceptions/NoCredentialException;"
+            }
+            if (anchorIndex < 0) {
+                throw PatchException(
+                    "NoCredentialException type-check not found in $name - " +
+                        "the no-credential result cannot be located structurally"
+                )
+            }
+            val newWrapperInstruction = instructions.getOrNull(anchorIndex + 2)
+            val singletonInstruction = instructions.getOrNull(anchorIndex + 3)
+            val ctorInstruction = instructions.getOrNull(anchorIndex + 4)
+            if (newWrapperInstruction?.opcode != Opcode.NEW_INSTANCE ||
+                singletonInstruction?.opcode != Opcode.SGET_OBJECT ||
+                ctorInstruction?.opcode != Opcode.INVOKE_DIRECT
+            ) {
+                throw PatchException(
+                    "the no-credential result construction in $name does not have the expected " +
+                        "shape (NEW_INSTANCE, SGET_OBJECT, INVOKE_DIRECT after the type-check)"
+                )
+            }
+            val wrapperType =
+                (newWrapperInstruction as ReferenceInstruction).reference as TypeReference
+            val singletonField =
+                (singletonInstruction as ReferenceInstruction).reference as FieldReference
+            val wrapperCtor =
+                (ctorInstruction as ReferenceInstruction).reference as MethodReference
+            if (wrapperCtor.definingClass != wrapperType.type ||
+                wrapperCtor.name != "<init>" ||
+                wrapperCtor.parameterTypes != listOf("Ljava/lang/Object;")
+            ) {
+                throw PatchException(
+                    "the constructor after the NoCredentialException branch does not build the " +
+                        "wrapper (${wrapperCtor.definingClass}->${wrapperCtor.name})"
+                )
+            }
+
+            val wrapperRegister = findFreeRegister(0)
+            val singletonRegister = findFreeRegister(0, wrapperRegister)
+
+            addInstructions(
+                1,
+                """
+                    invoke-static {}, $EXTENSION_CLASS->logCredentialRequestSuppressed()V
+                    new-instance v$wrapperRegister, $wrapperType
+                    sget-object v$singletonRegister, $singletonField
+                    invoke-direct { v$wrapperRegister, v$singletonRegister }, $wrapperCtor
+                    return-object v$wrapperRegister
+                """
+            )
+            verifyInjectionAt(1, EXTENSION_CLASS, "logCredentialRequestSuppressed")
+
+            // Read-back of the short-circuit itself: every injected instruction must sit
+            // exactly where it claims to, with the very references read off the method.
+            val shortCircuit = listOf(
+                2 to newWrapperInstruction,
+                3 to singletonInstruction,
+                4 to ctorInstruction,
+            )
+            for ((index, expected) in shortCircuit) {
+                val found = getInstruction<ReferenceInstruction>(index)
+                if (found.opcode != expected.opcode ||
+                    found.reference.toString() != (expected as ReferenceInstruction).reference.toString()
+                ) {
+                    throw PatchException(
+                        "short-circuit instruction $index of $name is not the copied reference"
+                    )
+                }
+            }
+            if (getInstruction(5).opcode != Opcode.RETURN_OBJECT) {
+                throw PatchException("the short-circuit return is not at instruction index 5 of $name")
+            }
         }
         AutoLoginResolveCredentialsLogTripwireFingerprint.method.apply {
             addInstructions(
