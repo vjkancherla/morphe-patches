@@ -27,6 +27,8 @@ import app.morphe.extension.reddit.settings.Settings;
 import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.ResourceUtils;
 
+import kotlin.Unit;
+
 @SuppressWarnings("unused")
 public final class HideNavigationButtonsPatch {
     /**
@@ -226,8 +228,20 @@ public final class HideNavigationButtonsPatch {
         }
     }
 
-    private static boolean isTrendingShelf(@Nullable Object shelf) {
-        if (shelf == null) {
+    /**
+     * Injection point (hook 7). Ends the welcome flow's onInitialize coroutine at its
+     * entry with the canonical completed-coroutine value, so its launch-time credential
+     * query never runs: the system credential providers answer the query with a chooser
+     * sheet that parks over the app on every cold start, and this fork has no sign-in
+     * surface at all. Not gated on the toggle - the query is the app asking for sign-in
+     * options, which this fork never offers.
+     */
+    public static Object skipWelcomeCredentialQuery() {
+        Logger.printDebug(() -> "Welcome credential query skipped");
+        return Unit.a;
+    }
+
+    private static boolean isTrendingShelf(@Nullable Object shelf) {        if (shelf == null) {
             return false;
         }
         // The models are domain data: their toString() starts with the GraphQL model name,

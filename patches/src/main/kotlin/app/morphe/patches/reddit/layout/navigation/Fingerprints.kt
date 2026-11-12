@@ -256,3 +256,20 @@ internal object SearchZeroStateFilterFingerprint : Fingerprint(
         "Lcom/reddit/search/domain/model/TypeaheadQueryMode;"
     )
 )
+
+/**
+ * Hook 7: the welcome flow's launch-time credential query - the onInitialize coroutine of
+ * `WelcomeScreen` (2026.45.0). The class name is not obfuscated, but the lambda ordinal is
+ * compiler-assigned, so the method is pinned by the suspend-lambda shape (public final
+ * `(Object)Object`) plus its unique "getCredentialsUseCase" string instead of the ordinal.
+ * The query is what makes the system credential providers (Google / Bitwarden) raise a
+ * chooser sheet over every cold start; this fork offers no sign-in surface, so the query
+ * is skipped at the coroutine's entry (hook 7 in the patch).
+ */
+internal object WelcomeCredentialQueryFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/auth/login/screen/welcome/WelcomeScreen\$onInitialize\$3;",
+    returnType = "Ljava/lang/Object;",
+    parameters = listOf("Ljava/lang/Object;"),
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    strings = listOf("getCredentialsUseCase")
+)
