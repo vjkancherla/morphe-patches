@@ -529,8 +529,9 @@ top_bar_search_button() {
   dismiss_overlays || return 1
   reddit_in_front >/dev/null || bring_reddit_front || return 1
   # Reach the top-bar state: close search; if no top bar, use a Home tap flow.
+  # The top bar lags up to 30+ s on this phone (measured) - poll, never single-dump.
   close_search_with_back
-  dump="$(ui_text_retried)"
+  dump="$(wait_for_ui 'Open community menu|text="search on Reddit"|(text|content-desc)="Search"' 15)"
   if ! bar_top_present "$dump"; then
     coords="$(node_center "$dump" "Home")"
     [ -n "$coords" ] && $ADB shell input tap $coords
@@ -540,7 +541,8 @@ top_bar_search_button() {
       echo "found:    the search page stayed up through three rounds of Back"
       return 1
     fi
-    dump="$(wait_for_ui 'Open community menu|text="search on Reddit"|(text|content-desc)="Search"' 12)"
+    # The bar's attach after the flow's Back can take 30+ s - the budget must cover it.
+    dump="$(wait_for_ui 'Open community menu|text="search on Reddit"|(text|content-desc)="Search"' 45)"
   fi
   if ! bar_top_present "$dump"; then
     echo "expected: the Communities top bar"
@@ -984,7 +986,7 @@ note "V11 (notification post -> Back) needs a human finger if adb cannot tap the
 
 log_clean() {
   out="$($ADB logcat -d 2>/dev/null)"
-  ! printf '%s' "$out" | grep -qE '"?(getStartTab|onBottomTabTapped|onStartTabAttached|openSearchPage|filterSearchZeroState) failure' &&
+  ! printf '%s' "$out" | grep -qE '"?(getStartTab|onBottomTabTapped|onStartTabAttached|openSearchPage|filterSearchZeroState|skipWelcomeCredentialQuery) failure' &&
     ! printf '%s' "$out" | grep -q "FATAL EXCEPTION"
 }
 check "no hook failure and no crash over the whole run" "look at: adb logcat -d" log_clean

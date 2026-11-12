@@ -61,8 +61,21 @@ check "result file: success, no failed patch, hide-nav applied" \
 # so the base for "this feature's changes" is the branch tip at S0 start, not main.
 # git log -1 feat/hide-home-feed at S0 start: 6450ea3a3 (verified, worktree clean).
 base="${S0_BASE:-6450ea3a3}"
-diff_stat="$(git diff --stat "$base" -- patches/ extensions/ | wc -l | tr -d ' ')"
-check_eq "no product diff against base, patches/ and extensions/ only (V3)" \
-  "look at: git diff --stat $base.. -- patches/ extensions/" 0 "$diff_stat"
+# V3's discipline for the FINISHED state: the product diff is confined to the six
+# allowed product files - S0's original zero-diff form was that step's unmodified
+# baseline and cannot survive the feature landing. Any seventh file under patches/ or
+# extensions/ is a discipline failure.
+allowed='extensions/reddit/src/main/java/app/morphe/extension/reddit/patches/HideNavigationButtonsPatch.java
+extensions/reddit/src/main/java/app/morphe/extension/reddit/settings/Settings.java
+extensions/reddit/src/main/java/app/morphe/extension/reddit/settings/preference/categories/NavigationBarPreferenceCategory.java
+patches/src/main/kotlin/app/morphe/patches/reddit/layout/navigation/Fingerprints.kt
+patches/src/main/kotlin/app/morphe/patches/reddit/layout/navigation/HideNavigationButtonsPatch.kt
+patches/src/main/resources/addresources/values/reddit/strings.xml'
+diff_files="$(git diff --name-only "$base" -- patches/ extensions/)"
+# grep exits 1 when nothing remains (zero violations - the good case); pipefail would
+# kill the script on it, so the grep's rc is discarded and wc decides.
+violations="$(printf '%s\n' "$diff_files" | { grep -Fvx -- "$allowed" || true; } | wc -l | tr -d ' ')"
+check_eq "product diff confined to the six allowed files, patches/ and extensions/ only (V3)" \
+  "look at: git diff --name-only $base -- patches/ extensions/ (violations: $(printf '%s' "$violations" | head -1))" 0 "$violations"
 
 finish

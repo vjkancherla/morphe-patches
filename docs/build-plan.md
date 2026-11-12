@@ -206,13 +206,65 @@ implementer as the next session's first prompt.
 
 ## Done
 
-- [ ] `scripts/checkpoint.sh all` green from a cold start
-- [ ] Every row of the design note's Verification table is covered by a check
-- [ ] What changed from the design, and why
-- [ ] What production needs that this omits
+- [ ] `scripts/checkpoint.sh all` green from a cold start - **superseded by the owner's
+      final-gate decision (2026-11-11)**: S03 fails only on V20 (red-accepted), so the
+      raw `all` verdict stays an honest FAIL; the gate (S04) asserts each checkpoint's
+      recorded verdict instead - S04 encodes the decision, the raw run is shown in the
+      final report
+- [x] Every row of the design note's Verification table is covered by a check (or
+      explicitly deferred below)
+- [x] What changed from the design, and why (stage reports + the Changes log)
+- [x] What production needs that this omits (the final hand-off report)
+
+## Final gate - covered / deferred (2026-11-11)
+
+Every design Verification row, accounted for at the final gate:
+
+| Row | Status | Evidence and reason |
+|---|---|---|
+| V1 build | PASS | S00 C1 |
+| V2 patch of 2026.45.0 | PASS | S00 C2, re-run green at every checkpoint (result.json, 29/29, no failed patches) |
+| V3 diff discipline | PASS | S00 C3; re-swept at the final gate's last commit: only the six allowed product files, +606/-2 |
+| V4 setting OFF stock | PASS | S02 (13/13) |
+| V5 cold start opens search | PASS | S01 (18/18), S02 re-run |
+| V6 subreddit from results, Back to search | PASS | S01 (guest r/soccer round-trip) |
+| V7 Back flow + top-bar search button | PASS | S01 (Back flow), S03 [8] |
+| V8 coexists with other hides | PASS | S03 [12] |
+| V9 Back never reaches Home | PASS | S03 [9] (a failure would be a STOP) |
+| V10 resume from background | PASS | S03 [13] (resume variant; the REDIRECT_TO_HOME timeout path needs a server-backed session - variant recorded in S03) |
+| V11 notification post -> Back | DEFERRED | needs a human finger if adb cannot tap the notification; flagged in every S03 run, covered nowhere else |
+| V12 cold sub deep link | PASS | S03 [10] |
+| V13 root deep link | PASS | S03 [11] |
+| V14 toggles together | PASS | S03 [18] |
+| V15 rotation | PASS | S03 [14] (pixel-diversity score recorded) |
+| V16 every route, no feed | PASS | S01 (all five guards) + S03 [15][16][17]; variant recorded: the Communities bar slot is absent on this phone (server state), so the with-tab re-tap route is not exercisable |
+| V17 OFF renders normally | PASS | S02 (pixel-diversity judged; this build's guest screens carry no vote/share a11y labels) |
+| V18 every Home tap opens search | PASS | S01 (hook 6 proved, blank Home never after a tap flow) |
+| V19 Hide Inbox toggle | PASS | S03 [19] (hides both bar Inboxes, OFF restores) |
+| V20 zero state, no Trending | DEFERRED | the ONE permitted attempt FAILED on device (Trending sections still render; hook verified matched/injected/read-back); **owner accepted as shipped, option (a), 2026-11-10** - recorded above and in the stage-B report |
 
 ## Changes
 
+- 2026-11-11 - V3's S00 check redefined for the finished state: from "zero product diff"
+  (S0's unmodified-baseline invariant, which the feature's landing necessarily breaks) to
+  "the product diff is confined to the six allowed product files" - the discipline the
+  plan has stated all along. LOOSENED in the strict sense (six named files vs zero);
+  the reason: the zero-diff form was S0's temporary invariant and the six-file limit is
+  the design's own rule; any seventh product file still fails the check.
+- 2026-11-11 - S03's V7 top-bar wait extended: the bar's attach can lag 30+ s (measured
+  device truth) and the fallback's 12 s poll raced it - the raw `checkpoint.sh all` run
+  failed V7 once that way (it had passed the same code twice earlier today). The
+  fallback's budget is now 45 s and the first reach polls 15 s instead of single-dumping.
+  Not a loosening - a poll budget covering a measured lag.
+- 2026-11-11 - The owner made the final-gate calls: **the gate encodes the decision** -
+  since S03's sole red is V20 (red-accepted), the raw `scripts/checkpoint.sh all` verdict
+  stays an honest FAIL and the S04 gate asserts each checkpoint's RECORDED verdict
+  instead (S03 = 20/21 with V20 the single failing check by owner decision); the raw run
+  is still shown in the final report. **Reviews stay deferred** (reaffirmed).
+  LOOSENED: S4's review-prompt check ("the review prompt has been run and its findings
+  file exists") no longer blocks the gate - it asserts that the owner's recorded
+  deferral stands instead. Nothing else proves less: the covered/deferred table and the
+  V3 re-sweep are new, harder checks.
 - 2026-11-10 - The owner called V20: **option (a), accept as shipped.** The zero-state
   filter's ONE permitted device attempt failed (the pre-typing search page still renders
   Trending / Trending Communities / the trending shelf; `evidence/S03.log` check [20] and
