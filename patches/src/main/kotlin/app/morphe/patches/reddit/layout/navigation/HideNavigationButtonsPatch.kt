@@ -17,6 +17,7 @@ import app.morphe.patcher.patch.patch
 import app.morphe.patcher.util.findFreeRegister
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod
 import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
+import app.morphe.patcher.util.returnEarly
 import app.morphe.patcher.util.smali.ExternalLabel
 import app.morphe.patches.reddit.misc.settings.settingsPatch
 import app.morphe.patches.reddit.misc.version.is_2026_25_0_or_greater
@@ -395,6 +396,16 @@ val hideNavigationButtonsPatch = patch(
             )
             verifyInjectionAt(0, EXTENSION_CLASS, "logCredentialRequest")
         }
+
+        // Keep guests out of the welcome/login flow (IntroductionActivity): on a fresh
+        // install with no session, Reddit's forced-login gate returns true and routes every
+        // cold start into the welcome screen - on both Hide-feeds states, and before any
+        // home or feed logic runs, so the fork's own hooks never get a chance. The gate's
+        // callers are the launch delegate and MainActivity, so forcing the gate itself
+        // false is the single choke point; guests keep the app's home, where the start-tab
+        // hooks land them on search. Verified on-device: with the gate active, BACK from
+        // the welcome screen exits the app, so the settings flow was unreachable at all.
+        ForceLoginGateFingerprint.method.returnEarly(false)
 
         // endregion
 

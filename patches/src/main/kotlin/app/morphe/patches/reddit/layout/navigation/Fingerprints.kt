@@ -316,3 +316,26 @@ internal object AutoLoginResolveCredentialsLogTripwireFingerprint : Fingerprint(
         "username_unavailable"
     )
 )
+
+/**
+ * The forced-login gate (`RedditForceLoginGate.isLoginForced` in 2026.45.0): true whenever
+ * Reddit decides a sign-in must be forced - a fresh install with no session qualifies -
+ * which routes every cold start into the welcome/login flow (`IntroductionActivity`)
+ * before any home or feed logic runs, on both Hide-feeds states. Its callers are the
+ * launch delegate and MainActivity (onResume and two handlers), so the gate itself is the
+ * single choke point. This fork has no sign-in surface at all, so the gate is forced
+ * false: guests keep the app's own home, where the fork's start-tab hooks land them on
+ * search.
+ * The class name is R8-obfuscated (`a` in the real `auth.login.forcelogin` package), so
+ * the method is pinned by its real `Session.isLoggedOut()` call plus the Z-returning
+ * no-arg shape - the class holds exactly two methods and this is its only such entry
+ * point. A version change fails the patch loudly, naming this patch.
+ */
+internal object ForceLoginGateFingerprint : Fingerprint(
+    definingClass = "Lcom/reddit/auth/login/forcelogin/a;",
+    returnType = "Z",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    filters = listOf(
+        methodCall(smali = "Lcom/reddit/session/Session;->isLoggedOut()Z")
+    )
+)
