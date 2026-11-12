@@ -17,6 +17,9 @@ if [ "$NN" = "all" ]; then
   for c in scripts/checks/S[0-9]*.sh; do
     [ -f "$c" ] || continue
     n="$(basename "$c" .sh)"; n="${n#S}"
+    # S04 is the final gate, not a raw member: it RUNS this `all` itself, so including
+    # it here would recurse and would dress the raw run in gate semantics.
+    [ "$n" = "04" ] && continue
     if "$0" "$n"; then
       passed=$((passed + 1)); summary="${summary}  ok    S${n}"$'\n'
     else

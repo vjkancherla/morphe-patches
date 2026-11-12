@@ -1,0 +1,16 @@
+# V11 manual sign-off - the place to record the owner's sign-off for V11.
+#
+# V11 (notification post -> Back) needs a human finger if adb cannot tap the
+# notification. It is NOT one of S03's 21 automated checks - S03 flags it in its log
+# and covers it nowhere else - and S04 never counts it as an automated pass. S04
+# reports this file's state: signed-off-by + date below, or PENDING.
+#
+# To record the sign-off, replace the placeholder lines (keep the field names):
+#
+# signed-off-by: <who>
+# date: <YYYY-MM-DD>
+#
+# S04's V11 line then reads: "V11: manual, signed off by <who> on <date>".
+#
+signed-off-by: PENDING
+date: PENDING
