@@ -12,5 +12,5 @@
 #
 # S04's V11 line then reads: "V11: manual, signed off by <who> on <date>".
 #
-signed-off-by: PENDING
-date: PENDING
+signed-off-by: Vijay Kancherla (n/a: Reddit notifications are turned off on the phone, so the notification-post path cannot occur)
+date: 2026-11-12
