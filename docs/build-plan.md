@@ -243,8 +243,43 @@ Every design Verification row, accounted for at the final gate:
 | V19 Hide Inbox toggle | PASS | S03 [19] (hides both bar Inboxes, OFF restores) |
 | V20 zero state, no Trending | DEFERRED | the ONE permitted attempt FAILED on device (Trending sections still render; hook verified matched/injected/read-back); **owner accepted as shipped, option (a), 2026-11-10** - recorded above and in the stage-B report |
 
+## Final gate - the credential-storm recovery (2026-11-12)
+
+Post-design work forced by the credential storm (a Google credential-chooser sheet
+parking over every Reddit launch); full narrative in the Changes entries below and in
+`docs/stages/C.md`:
+
+| Item | Status | Evidence and reason |
+|---|---|---|
+| 4a credential requests suppressed at the datasource | PASS | tripwire stacks pinned both launch-time asks to the datasource's R8-moved body; a fresh install still fired the sheet (Google-side state); the ask now returns the flow's own no-credential result at entry (references read off the method's bytecode, no obfuscated names); read-back verified; commit 25f758fb1 |
+| 4b forced-login check returns false | PASS | on a fresh install the forced-login gate routed every cold start into the welcome/login flow on BOTH Hide-feeds states, making the settings flow unreachable; gate forced false (structural fingerprint, Session.isLoggedOut anchor); owner-approved 2026-11-12 (the fork has no sign-in surface); 20/20 cold starts land on search after; commit f61021043 |
+| Step 3 - 20 scripted cold starts | PASS | 20/20 search in front, no sheet, no IntroductionActivity, suppressed count 0 each launch (the ask never fires on the guest path) |
+| S00 V3 six-file discipline after 4a/4b | PASS | git diff 6450ea3a3 -- patches extensions = exactly the six allowed files |
+| V11 notification post -> Back | DEFERRED (manual) | not one of S03's 21 automated checks; flagged in every S03 log; S04 carries it as its own manual line with the owner sign-off place (scripts/checks/S04-v11-signoff.txt) - sign-off PENDING |
+
 ## Changes
 
+- 2026-11-12 - **4a: credential requests suppressed at the datasource.** The credential
+  chooser sheet ("Sign-in options") is answered by the system credential providers to the
+  app's own `getCredentials` asks; tripwire stacks proved both launch-time asks go through
+  the datasource's R8-moved body (`RedditCredentialsDataSource`, `credentialsmanager/a;->f`,
+  found structurally - suspend-lambda shape + datasource-unique strings), and a FRESH
+  INSTALL still fired the sheet, so the wedged state is Google-side, not Reddit's data.
+  The datasource now returns at entry the flow's OWN no-credential result (the sealed
+  wrapper its `NoCredentialException` branch builds), with the new-instance/sget-object/
+  invoke-direct references read off the method's own bytecode at patch time (no obfuscated
+  names hard-coded; missing pieces fail the patch). Log tripwires stay (`MorpheCred` tag).
+  Hook 7 (the earlier welcome-coroutine skip) was reverted first: it did not stop the
+  sheet and hard-coded the R8 field name `a`.
+- 2026-11-12 - **4b: the forced-login check returns false (owner-approved, because the
+  fork has no sign-in surface).** On a fresh install with no session, Reddit's forced-login
+  gate (`RedditForceLoginGate`, `auth/login/forcelogin/a;->a()Z`, found structurally by its
+  real `Session.isLoggedOut()` call) returns true and routes every cold start into the
+  welcome/login flow (`IntroductionActivity`) on BOTH Hide-feeds states - which also made
+  the reinstall settings flow unreachable (BACK from the welcome screen exits the app).
+  The gate now returns false; guests keep the app's own home, where the start-tab hooks
+  land them on search. Verified on-device: 5/5 cold starts land on search, no sheet, no
+  welcome screen.
 - 2026-11-11 - V3's S00 check redefined for the finished state: from "zero product diff"
   (S0's unmodified-baseline invariant, which the feature's landing necessarily breaks) to
   "the product diff is confined to the six allowed product files" - the discipline the

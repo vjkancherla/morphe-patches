@@ -1,6 +1,6 @@
 # S01 checkpoint run
-# started  2026-11-10T18:55:22Z
-# commit   c5b56fdf5
+# started  2026-11-12T17:30:05Z
+# commit   f61021043
 # check    effa136dddf542951d77b4cb5e6dfb6511c2f33a
 # ---
 == S01  S1: no feed renders; cold start opens search; every Home tap opens search

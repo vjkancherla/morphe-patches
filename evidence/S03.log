@@ -1,7 +1,7 @@
 # S03 checkpoint run
-# started  2026-11-12T10:51:59Z
-# commit   7594a993a
-# check    56ea70ae19902401437a8f3936413bbca7ab9292
+# started  2026-11-12T17:35:52Z
+# commit   f61021043
+# check    4e33686e54dda95654e5694160589925f3352c21
 # ---
 == S03  S3: V7-V16 device gauntlet, V19 Inbox toggle, V20 trending A/B proof
    Proves: with *Hide feeds* ON as a guest: the top-bar search button works (V7); Back never
@@ -56,7 +56,7 @@
         | text="Search Reddit"
         | text="Trending Communities"
         | text="Trending"
-        | text="r/AskIndianWomen"
+        | text="Varanasi Movie"
         |   -- evidence: evidence/S03-search-zero-state-after.png (may be missing if the pull failed)
         look at:  look at: uiautomator dump, evidence/S03-search-zero-state-after.png
   -- V11 (notification post -> Back) needs a human finger if adb cannot tap the

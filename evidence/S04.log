@@ -1,0 +1,33 @@
+# S04 checkpoint run
+# started  2026-11-12T17:45:26Z
+# commit   f61021043
+# check    848329c7a034c4e173e35625f34079f397209671
+# ---
+== S04  Final gate: recorded verdicts hold on a build-tied raw run; V20 the only accepted red; V11 manual
+   Proves: every checkpoint's recorded verdict still holds on a FRESH raw
+           scripts/checkpoint.sh all produced from the current product commit and the
+           patched APK it built (or, in read mode, that the recorded run came from exactly
+           this tree's commit and APK sha256). The accepted-exceptions file is enforced,
+           not just recorded: an unlisted red fails the gate, a listed red failing in a
+           different way fails the gate, and a listed row that now PASSES is a stale
+           exception that fails the gate until removed.
+   How:    runs the raw all fresh (or validates the identity file in read mode), records
+           the product commit + patched APK sha256, then applies the exceptions file to
+           the per-checkpoint logs. V11 (notification post -> Back, needs a human finger)
+           is its own manual line with the owner's sign-off place - never counted as an
+           automated pass.
+   Needs:  JDK 21; for the fresh run: the phone attached over adb and UNLOCKED.
+
+  [1] ok    recorded run is tied to this tree: same product commit AND same patched APK sha256
+  [2] ok    accepted-exceptions file: exactly V20, 'option a, accepted as shipped', 2026-11-12
+  [3] ok    S00 verdict green on the fresh run
+  [4] ok    S01 verdict green on the fresh run
+  [5] ok    S02 verdict green on the fresh run
+  [6] ok    S03 shape: 1 of 21 failed, and the failure is V20
+  [7] ok    V20 fails exactly the accepted signature (Trending shelves render; recent searches intact)
+  [8] ok    the raw scripts/checkpoint.sh all verdict stays FAIL (the exception applies to this gate only)
+  -- V11: manual, owner sign-off required - PENDING (record it in scripts/checks/S04-v11-signoff.txt: signed-off-by + date); NOT counted as an automated pass
+  -- V11 sits outside S03's 21 automated checks: S03 flags it in its log ('needs a human finger, flagged, not skipped') and counts it nowhere.
+
+PASS: S04 - 8 of 8 checks passed
+# exit     0

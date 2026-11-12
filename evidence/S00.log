@@ -1,7 +1,7 @@
 # S00 checkpoint run
-# started  2026-11-08T18:13:29Z
-# commit   8cea1dedb
-# check    32dbed74fa7f0dc3371008a6534e472a9d13dc20
+# started  2026-11-12T17:29:54Z
+# commit   f61021043
+# check    a0cff600c0c16d57af4309fb076038df1b06e808
 # ---
 == S00  Baseline: the fork builds and patches Reddit 2026.45.0, unmodified
    Proves: the toolchain is green before any product code exists, so S1 onward debugs the
@@ -19,7 +19,7 @@
   [3] ok    patch bundles produced by buildAndroid
   [4] ok    morphe-desktop patches the .apkm clean (V2, mechanical half)
   [5] ok    result file: success, no failed patch, hide-nav applied
-  [6] ok    no product diff against base, patches/ and extensions/ only (V3)
+  [6] ok    product diff confined to the six allowed files, patches/ and extensions/ only (V3)
 
 PASS: S00 - 6 of 6 checks passed
 # exit     0
