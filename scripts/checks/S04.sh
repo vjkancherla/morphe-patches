@@ -42,11 +42,20 @@ if [ "${S04_MODE:-fresh}" = "read" ]; then
     rec_sha="$(sed -n 's/^patched-apk-sha256: //p' evidence/S04-build-identity.txt)"
     cur_commit="$(git rev-parse HEAD)"
     cur_sha="$(sha_of build/ckpt/patched.apk)"
-    if [ "$rec_commit" != "$cur_commit" ]; then
-      echo "expected: recorded commit $rec_commit"; echo "found:    current HEAD $cur_commit"; return 1
-    fi
     if [ "$rec_sha" != "$cur_sha" ]; then
       echo "expected: recorded patched-apk sha256 $rec_sha"; echo "found:    current $cur_sha"; return 1
+    fi
+    if [ "$rec_commit" != "$cur_commit" ]; then
+      # The tie is to the PRODUCT commit: docs/scripts-only commits after the recorded
+      # run do not change what the APK was built from. The APK sha256 above binds the
+      # binary either way; a product-tree change fails the gate.
+      if [ -n "$(git diff --name-only "$rec_commit" HEAD -- patches extensions)" ]; then
+        echo "expected: no product change since the recorded run ($rec_commit)"
+        echo "found:    product files changed since it:"
+        git diff --name-only "$rec_commit" HEAD -- patches extensions | sed 's/^/        /'
+        return 1
+      fi
+      echo "note: HEAD advanced since the recorded run ($rec_commit -> $cur_commit), product tree identical"
     fi
   }
   require "recorded run is tied to this tree: same product commit AND same patched APK sha256" \

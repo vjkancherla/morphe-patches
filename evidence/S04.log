@@ -1,7 +1,7 @@
 # S04 checkpoint run
-# started  2026-11-12T17:45:26Z
-# commit   f61021043
-# check    848329c7a034c4e173e35625f34079f397209671
+# started  2026-11-12T17:47:36Z
+# commit   184b5dfcc
+# check    cd1f82017b9a5d9d5c2b34f7e4c6eae3967e8614
 # ---
 == S04  Final gate: recorded verdicts hold on a build-tied raw run; V20 the only accepted red; V11 manual
    Proves: every checkpoint's recorded verdict still holds on a FRESH raw
